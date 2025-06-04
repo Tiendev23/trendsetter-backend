@@ -10,6 +10,6 @@ const productSchema = new mongoose.Schema({
     description: { type: String },
     sizes: [{ type: String }],
     colors: [{ type: String }],
-});
+}, { optimisticConcurrency: true });
 
 module.exports = mongoose.model('Product', productSchema);

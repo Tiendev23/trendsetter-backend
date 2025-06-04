@@ -19,6 +19,6 @@ const orderSchema = new mongoose.Schema({
     },
     shippingAddress: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
-}, { timestamps: true });
+}, { timestamps: true, optimisticConcurrency: true });
 
 module.exports = mongoose.model('Order', orderSchema);

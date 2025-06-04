@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
     fullName: { type: String, required: true, trim: true },
     role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],  // Thêm trường favorites
-}, { timestamps: true });
+}, { timestamps: true, optimisticConcurrency: true });
 
 
 // Mã hóa mật khẩu trước khi lưu
