@@ -11,5 +11,7 @@ router.get('/:id/favorites', userController.getUserFavorites);
 router.post('/:id/favorites', userController.addFavorite);
 router.delete('/:id/favorites/:productId', userController.removeFavorite);
 
+router.post('/login', userController.login)
+
 
 module.exports = router;
