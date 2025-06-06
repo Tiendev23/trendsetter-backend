@@ -11,6 +11,7 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
+// register api
 exports.createUser = async (req, res) => {
     try {
         const { username, password, email, fullName, role } = req.body;
@@ -110,12 +111,16 @@ exports.removeFavorite = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        const { email, password } = req.body;
-
-        const user = await User.findOne({ email });
+        const { emailOrUsername, password } = req.body;
+        const user = await User.findOne({
+            $or: [{ email: emailOrUsername }, { username: emailOrUsername }]
+        });
+        if (!user) {
+            return res.status(404).json({ message: 'Sai email / tên đăng nhập hoặc mật khẩu' });
+        }
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(404).json({ message: 'Tài khoản không tồn tại' });
+            return res.status(404).json({ message: 'Sai email / tên đăng nhập hoặc mật khẩu' });
         };
         const token = config.createJWT(user._id);
 
