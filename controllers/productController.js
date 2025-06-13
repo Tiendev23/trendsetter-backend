@@ -1,4 +1,5 @@
 const Product = require('../models/productModel');
+const config = require('../config');
 
 // Hàm lấy URL file upload theo field name
 const getFileUrl = (req, fieldName) => {
@@ -38,39 +39,86 @@ exports.getProductById = async (req, res) => {
 };
 
 
+// exports.createProduct = async (req, res) => {
+//     try {
+//         const { name, price, category, brand, description, sizes, colors } = req.body;
+
+//         const image = getFileUrl(req, 'image');
+//         const banner = getFileUrl(req, 'banner');
+
+//         // Xử lý sizes
+//         let parsedSizes = [];
+//         if (sizes) {
+//             if (typeof sizes === 'string') {
+//                 try {
+//                     parsedSizes = JSON.parse(sizes);
+//                 } catch {
+//                     parsedSizes = [sizes];
+//                 }
+//             } else if (Array.isArray(sizes)) {
+//                 parsedSizes = sizes;
+//             }
+//         }
+
+//         // Xử lý colors
+//         let parsedColors = [];
+//         if (colors) {
+//             if (typeof colors === 'string') {
+//                 try {
+//                     parsedColors = JSON.parse(colors);
+//                 } catch {
+//                     parsedColors = [colors];
+//                 }
+//             } else if (Array.isArray(colors)) {
+//                 parsedColors = colors;
+//             }
+//         }
+
+//         const product = new Product({
+//             name,
+//             price,
+//             category,
+//             brand,
+//             description,
+//             sizes: parsedSizes,
+//             colors: parsedColors,
+//             image,
+//             banner,
+//         });
+
+//         const savedProduct = await product.save();
+//         res.status(201).json(savedProduct);
+//     } catch (error) {
+//         res.status(400).json({ message: error.message });
+//     }
+// };
+
 exports.createProduct = async (req, res) => {
     try {
         const { name, price, category, brand, description, sizes, colors } = req.body;
 
-        const image = getFileUrl(req, 'image');
-        const banner = getFileUrl(req, 'banner');
+        let image = null, banner = null;
 
-        // Xử lý sizes
-        let parsedSizes = [];
-        if (sizes) {
-            if (typeof sizes === 'string') {
-                try {
-                    parsedSizes = JSON.parse(sizes);
-                } catch {
-                    parsedSizes = [sizes];
+        // Upload image nếu có
+        if (req.files && req.files.image) {
+            const result = await config.cloudinary.uploader.upload_stream(
+                { resource_type: "image" },
+                (error, result) => {
+                    if (error) throw error;
+                    image = result.secure_url;
                 }
-            } else if (Array.isArray(sizes)) {
-                parsedSizes = sizes;
-            }
+            ).end(req.files.image[0].buffer);
         }
 
-        // Xử lý colors
-        let parsedColors = [];
-        if (colors) {
-            if (typeof colors === 'string') {
-                try {
-                    parsedColors = JSON.parse(colors);
-                } catch {
-                    parsedColors = [colors];
+        // Upload banner nếu có
+        if (req.files && req.files.banner) {
+            const result = await cloudinary.uploader.upload_stream(
+                { resource_type: "image" },
+                (error, result) => {
+                    if (error) throw error;
+                    banner = result.secure_url;
                 }
-            } else if (Array.isArray(colors)) {
-                parsedColors = colors;
-            }
+            ).end(req.files.banner[0].buffer);
         }
 
         const product = new Product({
@@ -79,8 +127,8 @@ exports.createProduct = async (req, res) => {
             category,
             brand,
             description,
-            sizes: parsedSizes,
-            colors: parsedColors,
+            sizes: JSON.parse(sizes || "[]"),
+            colors: JSON.parse(colors || "[]"),
             image,
             banner,
         });
