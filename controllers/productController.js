@@ -1,6 +1,5 @@
 const Product = require('../models/productModel');
-const config = require('../config');
-const path = require('path');
+const { cloudinary } = require('../config');
 
 // Hàm lấy URL file upload theo field name
 const getFileUrl = (req, fieldName) => {
@@ -13,11 +12,10 @@ const getFileUrl = (req, fieldName) => {
 
 const uploadToCloudinary = async (file, folder) => {
     if (!file) return null;
-
     const uniqueFilename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
     return new Promise((resolve, reject) => {
-        const stream = config.cloudinary.uploader.upload_stream(
+        const stream = cloudinary.uploader.upload_stream(
             { resource_type: "image", folder, public_id: uniqueFilename },
             (error, result) => {
                 if (error) return reject(error);
@@ -26,6 +24,20 @@ const uploadToCloudinary = async (file, folder) => {
         );
         stream.end(file.buffer);
     });
+};
+
+const deleteCloudinaryImage = async (imageUrl) => {
+    if (!imageUrl) return;
+
+    const publicId = imageUrl.split('/').slice(-2).join('/').replace(/\.[^.]+$/, '');
+    console.log('Deleting Cloudinary image:', publicId);
+
+    try {
+        await cloudinary.uploader.destroy(publicId);
+        console.log('Deleted successfully:', publicId);
+    } catch (error) {
+        console.error('Error deleting image:', error);
+    }
 };
 
 exports.getAllProducts = async (req, res) => {
@@ -121,7 +133,7 @@ exports.updateProduct = async (req, res) => {
         if (!product) return res.status(404).json({ message: "Product not found" });
         // const image = getFileUrl(req, 'image');
         // const banner = getFileUrl(req, 'banner');
-        // Xử lý upload ảnh nếu có ảnh mới
+        // Xử lý upload ảnh
         const image = req.files.image
             ? await uploadToCloudinary(req.files.image[0], "products")
             : product.image;
@@ -130,15 +142,9 @@ exports.updateProduct = async (req, res) => {
             ? await uploadToCloudinary(req.files.banner[0], "banners")
             : product.banner;
 
-        // Nếu có ảnh mới, xóa ảnh cũ trên Cloudinary để tránh dư thừa
-        if (req.files.image && product.image) {
-            const publicId = product.image.split('/').pop();
-            await config.cloudinary.uploader.destroy(publicId);
-        }
-        if (req.files.banner && product.banner) {
-            const publicId = product.banner.split('/').pop() // Lấy public_id từ URL
-            await config.cloudinary.uploader.destroy(publicId);
-        }
+        // Xóa ảnh cũ trên Cloudinary
+        await deleteCloudinaryImage(product.image);
+        await deleteCloudinaryImage(product.banner);
 
         let parsedSizes = [];
         if (sizes) {
@@ -196,6 +202,10 @@ exports.updateProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
     try {
         const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+
+        await deleteCloudinaryImage(deletedProduct.image);
+        await deleteCloudinaryImage(deletedProduct.banner);
+
         if (!deletedProduct) return res.status(404).json({ message: 'Product not found' });
         res.json({ message: 'Product deleted' });
     } catch (error) {
