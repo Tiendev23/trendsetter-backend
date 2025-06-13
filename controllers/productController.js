@@ -1,5 +1,6 @@
 const Product = require('../models/productModel');
 const config = require('../config');
+const path = require('path');
 
 // Hàm lấy URL file upload theo field name
 const getFileUrl = (req, fieldName) => {
@@ -106,7 +107,6 @@ exports.createProduct = async (req, res) => {
             image,
             banner,
         });
-
         const savedProduct = await product.save();
         res.status(201).json(savedProduct);
     } catch (error) {
@@ -132,10 +132,12 @@ exports.updateProduct = async (req, res) => {
 
         // Nếu có ảnh mới, xóa ảnh cũ trên Cloudinary để tránh dư thừa
         if (req.files.image && product.image) {
-            await config.cloudinary.uploader.destroy(product.image.public_id);
+            const publicId = product.image.split('/').pop().split('.')[0]; // Lấy public_id từ URL
+            await config.cloudinary.uploader.destroy(publicId);
         }
         if (req.files.banner && product.banner) {
-            await config.cloudinary.uploader.destroy(product.banner.public_id);
+            const publicId = product.banner.split('/').pop().split('.')[0]; // Lấy public_id từ URL
+            await config.cloudinary.uploader.destroy(publicId);
         }
 
         let parsedSizes = [];
