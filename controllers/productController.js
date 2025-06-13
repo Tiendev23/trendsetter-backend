@@ -14,7 +14,7 @@ const getFileUrl = (req, fieldName) => {
 const uploadToCloudinary = async (file, folder) => {
     if (!file) return null;
 
-    const uniqueFilename = `${folder}/${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+    const uniqueFilename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
     return new Promise((resolve, reject) => {
         const stream = config.cloudinary.uploader.upload_stream(
@@ -132,11 +132,11 @@ exports.updateProduct = async (req, res) => {
 
         // Nếu có ảnh mới, xóa ảnh cũ trên Cloudinary để tránh dư thừa
         if (req.files.image && product.image) {
-            const publicId = product.image.split('/').pop().split('.')[0]; // Lấy public_id từ URL
+            const publicId = product.image.split('/').pop();
             await config.cloudinary.uploader.destroy(publicId);
         }
         if (req.files.banner && product.banner) {
-            const publicId = product.banner.split('/').pop().split('.')[0]; // Lấy public_id từ URL
+            const publicId = product.banner.split('/').pop() // Lấy public_id từ URL
             await config.cloudinary.uploader.destroy(publicId);
         }
 
