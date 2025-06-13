@@ -120,8 +120,23 @@ exports.updateProduct = async (req, res) => {
 
         // const image = getFileUrl(req, 'image');
         // const banner = getFileUrl(req, 'banner');
-        let image = await uploadToCloudinary(req.files.image?.[0], 'products');
-        let banner = await uploadToCloudinary(req.files.banner?.[0], 'banners');
+        // Xử lý upload ảnh nếu có ảnh mới
+        const image = req.files.image
+            ? await uploadToCloudinary(req.files.image[0], "products")
+            : product.image;
+
+        const banner = req.files.banner
+            ? await uploadToCloudinary(req.files.banner[0], "banners")
+            : product.banner;
+
+        // Nếu có ảnh mới, xóa ảnh cũ trên Cloudinary để tránh dư thừa
+        if (req.files.image && product.image) {
+            await config.cloudinary.uploader.destroy(product.image.public_id);
+        }
+        if (req.files.banner && product.banner) {
+            await config.cloudinary.uploader.destroy(product.banner.public_id);
+        }
+
         let parsedSizes = [];
         if (sizes) {
             if (typeof sizes === 'string') {
