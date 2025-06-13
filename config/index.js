@@ -2,10 +2,11 @@ require('dotenv').config();
 const cloudinary = require("cloudinary").v2;
 
 cloudinary.config({
-    cloud_name: "trendsetter",
-    api_key: "392848611572862",
-    api_secret: "iMMifNcnulZ2IWNAh_ms3ZcHzss"
+    cloud_name: process.env.CLOUDINARY_URL.split('@')[1],
+    api_key: process.env.CLOUDINARY_URL.split('//')[1].split(':')[0],
+    api_secret: process.env.CLOUDINARY_URL.split('//')[1].split(':')[1].split('@')[0]
 });
+
 
 module.exports = {
     SECRET_KEY: process.env.SECRET_KEY,
