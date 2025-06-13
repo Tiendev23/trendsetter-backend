@@ -16,7 +16,7 @@ const uploadToCloudinary = async (file, folder) => {
     const uniqueFilename = `${folder}/${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
 
     return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
+        const stream = config.cloudinary.uploader.upload_stream(
             { resource_type: "image", folder, public_id: uniqueFilename },
             (error, result) => {
                 if (error) return reject(error);
