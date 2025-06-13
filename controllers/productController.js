@@ -10,6 +10,23 @@ const getFileUrl = (req, fieldName) => {
     return null;
 };
 
+const uploadToCloudinary = async (file, folder) => {
+    if (!file) return null;
+
+    const uniqueFilename = `${folder}/${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { resource_type: "image", folder, public_id: uniqueFilename },
+            (error, result) => {
+                if (error) return reject(error);
+                resolve(result.secure_url);
+            }
+        );
+        stream.end(file.buffer);
+    });
+};
+
 exports.getAllProducts = async (req, res) => {
     try {
         const filter = {};
@@ -44,38 +61,9 @@ exports.createProduct = async (req, res) => {
 
         //         const image = getFileUrl(req, 'image');
         //         const banner = getFileUrl(req, 'banner');
-        let image = null, banner = null;
-
-        // Upload image nếu có
-        if (req.files && req.files.image) {
-            const result = await new Promise((resolve, reject) => {
-                const stream = config.cloudinary.uploader.upload_stream(
-                    { resource_type: "image", folder: "trendsetter-products" },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
-                );
-                // console.log("Cloudinary Banner Upload Result:", result);
-                stream.end(req.files.image[0].buffer);
-            });
-            image = result.secure_url;
-        }
-        // Upload banner nếu có
-        if (req.files && req.files.banner) {
-            const result = await new Promise((resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
-                    { resource_type: "image", folder: "trendsetter-products" },
-                    (error, result) => {
-                        if (error) return reject(error);
-                        resolve(result);
-                    }
-                );
-                stream.end(req.files.banner[0].buffer);
-            });
-            // console.log("Cloudinary Banner Upload Result:", result);
-            banner = result.secure_url;
-        }
+        // let image = null, banner = null;
+        let image = await uploadToCloudinary(req.files.image?.[0], 'products');
+        let banner = await uploadToCloudinary(req.files.banner?.[0], 'banners');
 
         // Xử lý sizes
         let parsedSizes = [];
