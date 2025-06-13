@@ -1,5 +1,5 @@
 const User = require('../models/userModel');
-const config = require('../config/auth-config');
+const jwt = require('../utils/jwt');
 const bcrypt = require('bcrypt');
 
 exports.getAllUsers = async (req, res) => {
@@ -122,7 +122,7 @@ exports.login = async (req, res) => {
         if (!isMatch) {
             return res.status(404).json({ message: 'Sai email / tên đăng nhập hoặc mật khẩu' });
         };
-        const token = config.createJWT(user._id);
+        const token = jwt.createJWT(user._id);
 
         res.status(200).json({ token, user });
     } catch (error) {
