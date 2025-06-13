@@ -118,9 +118,10 @@ exports.updateProduct = async (req, res) => {
     try {
         const { name, price, category, brand, description, sizes, colors } = req.body;
 
-        const image = getFileUrl(req, 'image');
-        const banner = getFileUrl(req, 'banner');
-
+        // const image = getFileUrl(req, 'image');
+        // const banner = getFileUrl(req, 'banner');
+        let image = await uploadToCloudinary(req.files.image?.[0], 'products');
+        let banner = await uploadToCloudinary(req.files.banner?.[0], 'banners');
         let parsedSizes = [];
         if (sizes) {
             if (typeof sizes === 'string') {
