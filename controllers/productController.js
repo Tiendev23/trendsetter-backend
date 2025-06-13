@@ -61,9 +61,9 @@ exports.createProduct = async (req, res) => {
 
         //         const image = getFileUrl(req, 'image');
         //         const banner = getFileUrl(req, 'banner');
-        // let image = null, banner = null;
-        let image = await uploadToCloudinary(req.files.image?.[0], 'products');
-        let banner = await uploadToCloudinary(req.files.banner?.[0], 'banners');
+        let image = null, banner = null;
+        image = await uploadToCloudinary(req.files.image?.[0], 'products');
+        banner = await uploadToCloudinary(req.files.banner?.[0], 'banners');
 
         // Xử lý sizes
         let parsedSizes = [];
@@ -117,7 +117,8 @@ exports.createProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const { name, price, category, brand, description, sizes, colors } = req.body;
-
+        const product = await Product.findById(req.params.id);
+        if (!product) return res.status(404).json({ message: "Product not found" });
         // const image = getFileUrl(req, 'image');
         // const banner = getFileUrl(req, 'banner');
         // Xử lý upload ảnh nếu có ảnh mới
