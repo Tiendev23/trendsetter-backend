@@ -3,13 +3,15 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const path = require('path');
-const config = require('./config');
+const { LOCAL_URI, MONGO_URI } = require('./config');
 
 const categoryRoutes = require('./routes/categoryRoutes');
 const productRoutes = require('./routes/productRoutes');
 const brandRoutes = require('./routes/brandRoutes');
 const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+// Thanh toán
+const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 
@@ -22,7 +24,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 
 // Kết nối MongoDB (thay đổi chuỗi kết nối phù hợp)
-mongoose.connect(config.MONGO_URI, {
+mongoose.connect(LOCAL_URI, {
+    // mongoose.connect(config.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 })
@@ -35,6 +38,8 @@ app.use('/api/products', productRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
+// Cho thanh toán
+app.use('/api/payments', paymentRoutes);
 
 // Lắng nghe server
 const PORT = process.env.PORT || 5000;
