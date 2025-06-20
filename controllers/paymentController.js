@@ -1,4 +1,14 @@
+const Payment = require('../models/paymentModel');
 const payosService = require("../services/payosService");
+
+exports.getAllMethods = async (req, res) => {
+    try {
+        const methods = await Payment.find();
+        res.json(methods);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 
 exports.createPayOSPayment = async (req, res) => {
     try {
@@ -14,6 +24,7 @@ exports.createPayOSPayment = async (req, res) => {
 
         // Gọi service xử lý thanh toán
         const result = await payosService.createPayment(paymentData);
+
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });

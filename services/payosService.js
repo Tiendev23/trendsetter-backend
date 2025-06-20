@@ -37,7 +37,7 @@ exports.createPayment = async (paymentData) => {
         const expiredAt = Math.floor(Date.now() / 1000) + 1200 // Tức lệnh hết hạn sau 20 phút
 
         // Tạo chữ ký để xác thực request
-        const signatureString = `amount=${amount}&cancelUrl=${cancelUrl}&description=${description}&orderCode=${orderCode}&returnUrl=${returnUrl}&expiredAt=${expiredAt}`;
+        const signatureString = `amount=${amount}&cancelUrl=${cancelUrl}&description=${description}&orderCode=${orderCode}&returnUrl=${returnUrl}`;
         const signature = crypto.createHmac("sha256", CHECKSUM_KEY).update(signatureString).digest("hex");
 
         // Định dạng request body theo đúng cấu trúc mong muốn
@@ -55,16 +55,19 @@ exports.createPayment = async (paymentData) => {
             expiredAt,
             signature
         };
+        console.log('body:', JSON.stringify(body));
 
         // Gửi request đến PayOS API
         const response = await payosInstance.post("/v2/payment-requests", body);
+        console.log('you here >>> response data', response.data);
 
-        if (response.data.code === 0) {
-            return { paymentUrl: response.data.data.checkoutUrl };
+        if (response.data.code === "00") {
+            return response.data;
         } else {
-            throw new Error(response.data.message);
+            throw new Error("code: " + response.data.code, ", desc: " + response.data.desc);
         }
     } catch (error) {
+        console.log('you here >>>> error');
         throw new Error(error.message);
     }
 };

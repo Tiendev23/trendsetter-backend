@@ -26,12 +26,12 @@ exports.getOrderById = async (req, res) => {
 
 exports.createOrder = async (req, res) => {
     try {
-        const { user, items, totalPrice, shippingAddress } = req.body;
+        const { user, items, totalPrice, shippingAddress, status } = req.body;
         if (!user || !items || !totalPrice || !shippingAddress) {
             return res.status(400).json({ message: 'Thiếu thông tin đơn hàng' });
         }
 
-        const order = new Order({ user, items, totalPrice, shippingAddress });
+        const order = new Order({ user, items, totalPrice, shippingAddress, status });
         const savedOrder = await order.save();
         res.status(201).json(savedOrder);
     } catch (error) {
