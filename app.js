@@ -15,7 +15,12 @@ const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 
+// app.use(express.json());
 app.use(cors());
+
+// view engine setup
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'hbs');
 
 // Serve thư mục uploads để truy cập ảnh upload
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -24,7 +29,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 
 // Kết nối MongoDB (thay đổi chuỗi kết nối phù hợp)
-    mongoose.connect(MONGO_URI, {
+mongoose.connect(LOCAL_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 })
