@@ -12,6 +12,19 @@ exports.getAllOrders = async (req, res) => {
     }
 };
 
+exports.getOrdersByUser = async (req, res) => {
+    try {
+        const user = req.params.user;
+        const orders = await Order.find({ user })
+            .populate('user', 'username fullName email')
+            .populate('items.product', 'name price image')
+            .sort({ createdAt: -1 });
+        res.json(orders);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 exports.getOrderById = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id)
