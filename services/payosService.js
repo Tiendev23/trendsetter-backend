@@ -29,7 +29,7 @@ exports.createPayment = async (paymentData) => {
             expiredAt,
             signature
         };
-        console.log('body:', JSON.stringify(body));
+        // console.log('body:', JSON.stringify(body));
 
         // Gửi request đến PayOS API
         const response = await payosInstance.post("/v2/payment-requests", body);
