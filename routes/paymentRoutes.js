@@ -6,7 +6,7 @@ router.get('/', paymentController.getAllMethods);
 router.post("/payos/create-transaction", paymentController.createPayOSPayment);
 router.post("/zalopay/create-transaction", paymentController.createZaloPayPayment);
 
-router.get('/callback', paymentController.zaloPayRedirectHandler);
+router.post('/zalopay/callback', paymentController.callbackZaloPay);
 
 
 /* GET home page. */
