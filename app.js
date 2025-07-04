@@ -12,6 +12,8 @@ const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 // Thanh toán
 const paymentRoutes = require('./routes/paymentRoutes');
+// VeryfyOtp
+const emailRouters = require('./routes/emailRoutes')
 
 const app = express();
 
@@ -29,7 +31,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 
 // Kết nối MongoDB (thay đổi chuỗi kết nối phù hợp)
-mongoose.connect(MONGO_URI, {
+mongoose.connect(LOCAL_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 })
@@ -44,6 +46,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
 // Cho thanh toán
 app.use('/api/payments', paymentRoutes);
+// VerifyOtp
+app.use('/api/email', emailRouters);
 
 // Lắng nghe server
 const PORT = process.env.PORT || 5000;
