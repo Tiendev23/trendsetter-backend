@@ -1,4 +1,4 @@
-const Product = require('../models/productModel');
+const Product = require('../models/productModel/productModel');
 const { cloudinary } = require('../config');
 
 // Hàm lấy URL file upload theo field name
@@ -61,7 +61,7 @@ exports.getProductById = async (req, res) => {
         const product = await Product.findById(req.params.id)
             .populate('category')
             .populate('brand');
-            
+
         if (!product) return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
         res.json(product);
     } catch (error) {
@@ -213,3 +213,89 @@ exports.deleteProduct = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// const getProductDetails = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         const { variantId } = req.query;
+
+//         const product = await Product.findById(id)
+//             .populate('category')
+//             .populate('brand')
+//             .populate('tags')
+//             .populate({
+//                 path: 'variants',
+//                 populate: ['size']
+//             });
+
+//         if (!product) return res.status(404).json({ message: 'Product not found' });
+
+//         // Nếu có biến thể được chọn
+//         const selectedVariant = variantId
+//             ? product.variants.find(v => v._id.toString() === variantId)
+//             : product.variants[0]; // Default là biến thể đầu tiên
+
+//         // Countdown Sale Off (nếu có campaign đang hoạt động)
+//         const now = new Date();
+//         const campaign = await Campaign.findOne({
+//             product: product._id,
+//             startDate: { $lte: now },
+//             endDate: { $gte: now }
+//         });
+
+//         // Đánh giá tổng hợp
+//         const reviews = await Review.find({ product: product._id })
+//             .populate('user')
+//             .sort({ createdAt: -1 });
+
+//         const avgRating =
+//             reviews.reduce((sum, r) => sum + r.rating, 0) / (reviews.length || 1);
+
+//         // Danh sách size
+//         const sizes = product.variants.map(v => v.size.name);
+//         const uniqueSizes = [...new Set(sizes)];
+
+//         res.json({
+//             name: product.name,
+//             description: product.description,
+//             category: product.category.name,
+//             brand: product.brand.name,
+//             tags: product.tags.map(t => t.name),
+//             campaign: campaign
+//                 ? {
+//                     discount: campaign.discount,
+//                     endsIn: campaign.endDate
+//                 }
+//                 : null,
+//             selectedVariant: {
+//                 id: selectedVariant._id,
+//                 color: selectedVariant.color,
+//                 size: selectedVariant.size.name,
+//                 price: selectedVariant.price,
+//                 images: selectedVariant.images,
+//                 stock: selectedVariant.stock
+//             },
+//             variants: product.variants.map(v => ({
+//                 id: v._id,
+//                 color: v.color,
+//                 size: v.size.name
+//             })),
+//             sizes: uniqueSizes,
+//             reviews: {
+//                 average: Number(avgRating.toFixed(1)),
+//                 count: reviews.length,
+//                 data: reviews.map(r => ({
+//                     id: r._id,
+//                     rating: r.rating,
+//                     user: r.user.name,
+//                     content: r.content,
+//                     variant: r.variant?.size ? r.variant.size.name : null,
+//                     createdAt: r.createdAt
+//                 }))
+//             }
+//         });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ message: 'Server Error' });
+//     }
+// };

@@ -65,7 +65,6 @@ const endpoint = "https://trendsetter-backend.onrender.com"
 exports.createZaloPayPayment = async (req, res) => {
     try {
         const { amount, buyerName, buyerEmail, buyerPhone, buyerAddress, items, urlCalbackSuccess } = req.body;
-        console.log('urlCalbackSuccess', urlCalbackSuccess);
 
         if (!amount || !buyerName || !buyerEmail || !buyerPhone || !buyerAddress || !items) {
             return res.status(400).json({ error: "Thiếu thông tin giao dịch" });
@@ -78,7 +77,6 @@ exports.createZaloPayPayment = async (req, res) => {
         const embed_data = JSON.stringify({
             // preferred_payment_method: [],
             redirecturl: urlCalbackSuccess,
-            // redirecturl: `${endpoint}/api/payments/succeeded`,
             buyerPhone,
             buyerEmail,
             buyerAddress
