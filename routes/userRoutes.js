@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-
+const {verifyToken} = require('../middlewares/auth-middleware')
+router.put('/changePassword', verifyToken, userController.changePassword);
 router.get('/', userController.getAllUsers);
 router.post('/', userController.createUser);
 router.put('/:id', userController.updateUser);
@@ -12,6 +13,7 @@ router.post('/:id/favorites', userController.addFavorite);
 router.delete('/:id/favorites/:productId', userController.removeFavorite);
 
 router.post('/login', userController.login)
+
 
 
 module.exports = router;
