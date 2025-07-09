@@ -28,8 +28,11 @@ exports.sendOtp = async function (req, res) {
             subject: "Mã OTP xác thực tài khoản",
             html: htmlContent
         };
+        const existing = await Otp.findOne({ email: to });
+        if (existing) {
+            return res.status(429).json({ message: "OTP đã gửi, vui lòng đợi trong giây lát" });
+        }
         await sendMail.transporter.sendMail(mailOptions);
-        const bcrypt = require("bcrypt");
         const hashedOtp = await bcrypt.hash(otp.toString(), 10);
         //Lưu OTP vào MongoDB với thời gian tự hết hạn ( 2 phút trong schema)
         await Otp.create({ email: to, otp: hashedOtp });
