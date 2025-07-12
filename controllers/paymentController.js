@@ -1,18 +1,18 @@
-const Payment = require('../models/paymentModel');
+// const Payment = require('../models/paymentModel');
 const { payosInstance, CHECKSUM_KEY, zalopayConfig, zalopayInstance } = require("../config");
 const moment = require("moment");
 const Crypto = require("crypto");
 const { log } = require('console');
 
 
-exports.getAllMethods = async (req, res) => {
-    try {
-        const methods = await Payment.find();
-        res.json(methods);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
+// exports.getAllMethods = async (req, res) => {
+//     try {
+//         const methods = await Payment.find();
+//         res.json(methods);
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// };
 
 exports.createPayOSPayment = async (req, res) => {
     try {

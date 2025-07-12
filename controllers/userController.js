@@ -1,10 +1,13 @@
 const User = require('../models/userModel');
-const jwt = require('../utils/jwt');
-const bcrypt = require('bcrypt');
+const Order = require('../models/orderModel');
+const OrderDetail = require('../models/orderDetailModel');
+const { getEnrichedVariants } = require('../helpers/enrichVariant');
+const { applyProfileUpdates } = require('../helpers/userHelper');
 
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({}, '-password').sort({ createdAt: -1 });
+        // const users = await User.find({}, '-password').sort({ createdAt: -1 });
+        const users = await User.find().sort({ createdAt: -1 });
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -66,9 +69,12 @@ exports.deleteUser = async (req, res) => {
 
 exports.getUserFavorites = async (req, res) => {
     try {
-        const user = await User.findById(req.params.id).populate('favorites');
+        const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: 'User không tồn tại' });
-        res.json(user.favorites);
+        const filter = { _id: { $in: user.favorites } };
+        const enrichedVariants = await getEnrichedVariants(filter);
+
+        res.json(enrichedVariants);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -77,16 +83,16 @@ exports.getUserFavorites = async (req, res) => {
 exports.addFavorite = async (req, res) => {
     try {
         const userId = req.params.id;
-        const productId = req.body.productId;
+        const variantId = req.body.variantId;
 
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'User không tồn tại' });
 
-        if (!user.favorites.includes(productId)) {
-            user.favorites.push(productId);
+        if (!user.favorites.includes(variantId)) {
+            user.favorites.push(variantId);
             await user.save();
         }
-        res.json({ message: 'Đã thêm sản phẩm vào yêu thích' });
+        res.json({ message: 'Đã thêm sản phẩm vào yêu thích', favorite: variantId });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -95,12 +101,11 @@ exports.addFavorite = async (req, res) => {
 exports.removeFavorite = async (req, res) => {
     try {
         const userId = req.params.id;
-        const productId = req.params.productId;
+        const variantId = req.params.variantId;
 
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'User không tồn tại' });
-
-        user.favorites = user.favorites.filter(id => id.toString() !== productId);
+        user.favorites = user.favorites.filter(id => id.toString() !== variantId);
         await user.save();
         res.json({ message: 'Đã xóa sản phẩm khỏi yêu thích' });
     } catch (error) {
@@ -108,23 +113,89 @@ exports.removeFavorite = async (req, res) => {
     }
 };
 
-
-exports.login = async (req, res) => {
+exports.getUserAddresses = async (req, res) => {
     try {
-        const { emailOrUsername, password } = req.body;
-        const user = await User.findOne({
-            $or: [{ email: emailOrUsername }, { username: emailOrUsername }]
-        });
-        if (!user) {
-            return res.status(404).json({ message: 'Sai email / tên đăng nhập hoặc mật khẩu' });
-        }
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(404).json({ message: 'Sai email / tên đăng nhập hoặc mật khẩu' });
-        };
-        const token = jwt.createJWT(user._id);
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User không tồn tại' });
+        res.json(user.shippingAddresses);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 
-        res.status(200).json({ token, user });
+exports.addShippingAddress = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const address = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User không tồn tại' });
+        if (address.isDefault) {
+            user.shippingAddresses.forEach(addr => addr.isDefault = false);
+        }
+
+        user.shippingAddresses.push(address);
+        await user.save();
+
+        res.json({ message: 'Đã thêm mới địa chỉ giao hàng', address });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.removeShippingAddress = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const addressId = req.params.addressId;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User không tồn tại' });
+        user.shippingAddresses = user.shippingAddresses
+            .filter(address => address._id.toString() !== addressId);
+        await user.save();
+        res.json({ message: 'Đã xóa địa chỉ giao hàng' });
+    } catch (error) {
+        res.status(500).json({ message: error.message }); s
+    }
+};
+
+exports.updateProfile = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const props = req.body; // props là { username, fullName, gender, birthday }
+        const avatar = req.files?.avatar?.[0] || null;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User không tồn tại' });
+        const updated = await applyProfileUpdates(user, props, avatar);
+        res.json({
+            message: 'Cập nhật thông tin thành công',
+            user: updated
+        });
+    } catch (error) {
+        const status = error.statusCode || 500;
+        res.status(status).json({ message: error.message });
+    }
+};
+
+exports.getOrdersById = async (req, res) => {
+    try {
+        const user = req.params.userId;
+        const orders = await Order.find({ user })
+            .populate('user', 'username fullName email')
+            .populate('transaction')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        const enrichedOrders = await Promise.all(orders.map(async order => {
+            const items = await OrderDetail.find({ order: order._id }).lean();
+            return {
+                ...order,
+                items
+            };
+        }));
+
+        res.json(enrichedOrders);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
