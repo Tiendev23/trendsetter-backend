@@ -1,18 +1,18 @@
-const Payment = require('../models/paymentModel');
+// const Payment = require('../models/paymentModel');
 const { payosInstance, CHECKSUM_KEY, zalopayConfig, zalopayInstance } = require("../config");
 const moment = require("moment");
 const Crypto = require("crypto");
 const { log } = require('console');
 
 
-exports.getAllMethods = async (req, res) => {
-    try {
-        const methods = await Payment.find();
-        res.json(methods);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
+// exports.getAllMethods = async (req, res) => {
+//     try {
+//         const methods = await Payment.find();
+//         res.json(methods);
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// };
 
 exports.createPayOSPayment = async (req, res) => {
     try {
@@ -65,7 +65,6 @@ const endpoint = "https://trendsetter-backend.onrender.com"
 exports.createZaloPayPayment = async (req, res) => {
     try {
         const { amount, buyerName, buyerEmail, buyerPhone, buyerAddress, items, urlCalbackSuccess } = req.body;
-        console.log('urlCalbackSuccess', urlCalbackSuccess);
 
         if (!amount || !buyerName || !buyerEmail || !buyerPhone || !buyerAddress || !items) {
             return res.status(400).json({ error: "Thiếu thông tin giao dịch" });
@@ -78,7 +77,6 @@ exports.createZaloPayPayment = async (req, res) => {
         const embed_data = JSON.stringify({
             // preferred_payment_method: [],
             redirecturl: urlCalbackSuccess,
-            // redirecturl: `${endpoint}/api/payments/succeeded`,
             buyerPhone,
             buyerEmail,
             buyerAddress

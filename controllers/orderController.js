@@ -1,10 +1,12 @@
 const Order = require('../models/orderModel');
+const OrderDetail = require('../models/orderDetailModel');
+const Transaction = require('../models/transactionModel');
 
 exports.getAllOrders = async (req, res) => {
     try {
         const orders = await Order.find()
             .populate('user', 'username fullName email')
-            .populate('items.product', 'name price image')
+            .populate('transaction')
             .sort({ createdAt: -1 });
         res.json(orders);
     } catch (error) {
@@ -17,7 +19,7 @@ exports.getOrdersByUser = async (req, res) => {
         const user = req.params.user;
         const orders = await Order.find({ user })
             .populate('user', 'username fullName email')
-            .populate('items.product', 'name price image')
+            .populate('transaction')
             .sort({ createdAt: -1 });
         res.json(orders);
     } catch (error) {
@@ -25,13 +27,31 @@ exports.getOrdersByUser = async (req, res) => {
     }
 };
 
+// exports.getOrderById = async (req, res) => {
+//     try {
+//         const order = await Order.findById(req.params.id)
+//             .populate('user', 'username fullName email')
+//             .populate('items.product', 'name price image');
+//         if (!order) return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+//         res.json(order);
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// };
 exports.getOrderById = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id)
             .populate('user', 'username fullName email')
-            .populate('items.product', 'name price image');
+            .populate('transaction')
+            .lean();
         if (!order) return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
-        res.json(order);
+        const items = await OrderDetail.find({ order: order._id }).lean();
+
+        const enrichedOrder = {
+            ...order,
+            items
+        };
+        res.json(enrichedOrder);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

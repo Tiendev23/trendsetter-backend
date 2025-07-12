@@ -10,10 +10,15 @@ const productRoutes = require('./routes/productRoutes');
 const brandRoutes = require('./routes/brandRoutes');
 const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+// Auth
+const authRoutes = require('./routes/authRoutes');
 // Thanh toán
 const paymentRoutes = require('./routes/paymentRoutes');
 // VeryfyOtp
 const emailRouters = require('./routes/emailRoutes')
+// Biến thể
+const variantRoutes = require('./routes/variantRoutes');
+
 
 const app = express();
 
@@ -44,10 +49,14 @@ app.use('/api/products', productRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
+// Auth
+app.use('/api/auth', authRoutes);
 // Cho thanh toán
 app.use('/api/payments', paymentRoutes);
 // VerifyOtp
 app.use('/api/email', emailRouters);
+// Cho các biến thể
+app.use('/api/variants', variantRoutes);
 
 // Lắng nghe server
 const PORT = process.env.PORT || 5000;

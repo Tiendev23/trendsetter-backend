@@ -1,5 +1,8 @@
-const Product = require('../models/productModel');
-const { cloudinary } = require('../config');
+const { Product, ProductVariant, VariantSize } = require('../models/productModel');
+const Review = require('../models/reviewModel');
+const { getCampaignForProductCached } = require('../helpers/campaignHelper');
+const { uploadToCloudinary, deleteCloudinaryImage } = require('../services/cloudinaryService');
+const { getFinalPrice } = require('../helpers/enrichVariant');
 
 // Hàm lấy URL file upload theo field name
 const getFileUrl = (req, fieldName) => {
@@ -8,36 +11,6 @@ const getFileUrl = (req, fieldName) => {
         return `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
     }
     return null;
-};
-
-const uploadToCloudinary = async (file, folder) => {
-    if (!file) return null;
-    const uniqueFilename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { resource_type: "image", folder, public_id: uniqueFilename },
-            (error, result) => {
-                if (error) return reject(error);
-                resolve(result.secure_url);
-            }
-        );
-        stream.end(file.buffer);
-    });
-};
-
-const deleteCloudinaryImage = async (imageUrl) => {
-    if (!imageUrl) return;
-
-    const publicId = imageUrl.split('/').slice(-2).join('/').replace(/\.[^.]+$/, '');
-    console.log('Deleting Cloudinary image:', publicId);
-
-    try {
-        await cloudinary.uploader.destroy(publicId);
-        console.log('Deleted successfully:', publicId);
-    } catch (error) {
-        console.error('Error deleting image:', error);
-    }
 };
 
 exports.getAllProducts = async (req, res) => {
@@ -56,16 +29,75 @@ exports.getAllProducts = async (req, res) => {
     }
 };
 
+// exports.getProductById = async (req, res) => {
+//     try {
+//         const product = await Product.findById(req.params.id)
+//             .populate('category')
+//             .populate('brand');
+
+//         if (!product) return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
+//         res.json(product);
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// };
+
 exports.getProductById = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id)
-            .populate('category')
-            .populate('brand');
-            
+        const { id } = req.params;
+        const product = await Product.findById(id)
+            .populate('category', 'name')
+            .populate('brand', 'name')
+            .lean();
         if (!product) return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
+
+        const campaign = await getCampaignForProductCached(product, new Map());
+        product.campaign = campaign;
+
+        const variants = await ProductVariant.find({ product: product._id }).lean();
+        const enrichedVariants = await Promise.all(
+            variants.map(async variant => {
+                const finalPrice = getFinalPrice(variant.basePrice, campaign);
+                const inventories = await VariantSize.find({ productVariant: variant._id }, '-productColor');
+                return {
+                    ...variant,
+                    finalPrice,
+                    inventories
+                };
+            })
+        );
+        product.variants = enrichedVariants;
+
+        const reviews = await Review.find({ product: product._id });
+        const avgRating =
+            reviews.reduce((sum, r) => sum + r.rating, 0) / (reviews.length || 1);
+        product.rating = {
+            average: avgRating.toFixed(1),
+            count: reviews.length
+        };
+
         res.json(product);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server Error' + err.message });
+    }
+};
+
+exports.getReviewsById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!await Product.findById(id))
+            return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
+
+        const reviews = await Review.find({ product: id }, '-product')
+            .populate('user', 'username fullName avatar')
+            .populate('orderDetail', 'productSize productColor')
+            .sort({ createdAt: -1 });
+
+        res.json(reviews);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server Error' + err.message });
     }
 };
 
