@@ -17,8 +17,9 @@ const path = require('path');
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/', productController.getAllProducts);
-router.delete('/:id', productController.deleteProduct);
 router.get('/:id', productController.getProductById);
+router.get('/:id/reviews', productController.getReviewsById);
+router.delete('/:id', productController.deleteProduct);
 // Cho phép upload nhiều trường: image và banner
 router.post('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), productController.createProduct);
 router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), productController.updateProduct);
