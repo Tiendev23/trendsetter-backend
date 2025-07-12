@@ -4,7 +4,7 @@ const campaignSchema = new mongoose.Schema({
     products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
     categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
     brands: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Brand' }],
-    name: { type: String, required: true },
+    title: { type: String, required: true },
     description: { type: String, required: true },
     type: {
         type: String,

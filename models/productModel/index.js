@@ -1,5 +1,5 @@
 module.exports = {
     Product: require('./productModel'),
-    ProductColor: require('./productColorModel'),
-    ProductVariant: require('./productVariantModel')
+    ProductVariant: require('./productVariantModel'),
+    VariantSize: require('./variantSizeModel')
 };
