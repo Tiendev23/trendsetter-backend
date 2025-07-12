@@ -1,5 +1,17 @@
 require('dotenv').config();
 const cloudinary = require("cloudinary").v2
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    service: 'gmail',
+    port: 465,
+    secure: true,
+    auth: {
+        user: 'vongprocf@gmail.com',
+        pass: 'dsao nlvl dmjv gufq'
+    }
+});
 
 cloudinary.config({
     // cloud_name: process.env.CLOUDINARY_URL.split('@')[1],
@@ -39,4 +51,5 @@ module.exports = {
     CHECKSUM_KEY: process.env.CHECKSUM_KEY,
     zalopayInstance,
     zalopayConfig,
+    transporter,
 };
