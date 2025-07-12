@@ -1,5 +1,6 @@
 const Category = require('../models/categoryModel');
 
+
 exports.getAllCategories = async (req, res) => {
     try {
         const categories = await Category.find().populate('parent').sort({ name: 1 });
