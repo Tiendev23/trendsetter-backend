@@ -14,6 +14,8 @@ const orderRoutes = require('./routes/orderRoutes');
 const authRoutes = require('./routes/authRoutes');
 // Thanh toán
 const paymentRoutes = require('./routes/paymentRoutes');
+// VeryfyOtp
+const emailRouters = require('./routes/emailRoutes')
 // Biến thể
 const variantRoutes = require('./routes/variantRoutes');
 
@@ -51,6 +53,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/auth', authRoutes);
 // Cho thanh toán
 app.use('/api/payments', paymentRoutes);
+// VerifyOtp
+app.use('/api/email', emailRouters);
 // Cho các biến thể
 app.use('/api/variants', variantRoutes);
 

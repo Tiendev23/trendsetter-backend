@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const multer = require('multer');
+const { verifyToken } = require('../middlewares/authMiddleware')
 const upload = multer({ storage: multer.memoryStorage() });
 
+router.put('/changePassword', verifyToken, userController.changePassword); const multer = require('multer');
 router.get('/', userController.getAllUsers);
 router.post('/', userController.createUser);
 router.patch('/:id', upload.fields([{ name: 'avatar', maxCount: 1 }]), userController.updateProfile);
