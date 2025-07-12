@@ -6,12 +6,13 @@ const userController = require('../controllers/userController');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.put('/changePassword', verifyToken, userController.changePassword); 
 router.get('/', userController.getAllUsers);
 router.post('/', userController.createUser);
-router.patch('/:id', upload.fields([{ name: 'avatar', maxCount: 1 }]), userController.updateProfile);
 router.put('/:id', userController.updateUser);
 router.delete('/:id', userController.deleteUser);
+
+router.patch('/:id', upload.fields([{ name: 'avatar', maxCount: 1 }]), userController.updateProfile);
+router.put('/changePassword', verifyToken, userController.changePassword); 
 
 router.get('/:id/favorites', userController.getUserFavorites);
 router.post('/:id/favorites', userController.addFavorite);
