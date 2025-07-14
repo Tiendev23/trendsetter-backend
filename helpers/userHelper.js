@@ -1,11 +1,6 @@
-const { uploadToCloudinary, deleteCloudinaryImage } = require('../services/cloudinaryService');
+const { updateCloudinaryImage } = require('../services/cloudinaryService');
 const { throwError } = require('./errorHelper')
 const MIN_YEAR = 1900;
-
-const updateAvatar = async (file, imageUrl) => {
-    await deleteCloudinaryImage(imageUrl);
-    return await uploadToCloudinary(file, 'avatars');
-}
 
 const validateBirthday = (value) => {
     if (!value) return true;
@@ -29,12 +24,16 @@ const applyProfileUpdates = async (user, props, image) => {
         }
         user.birthday = new Date(props.birthday);
     }
-    if (image) user.avatar = await updateAvatar(image, user.avatar);
+    if (image) user.avatar = await updateCloudinaryImage(user.avatar, image, 'avatars');
     await user.save();
     return filterUserProfile(user);
 };
 
+const updateDefaultMark = (user, isDefault) => {
+    if (isDefault) user.shippingAddresses.forEach(addr => addr.isDefault = false);
+};
+
 module.exports = {
-    updateAvatar,
-    applyProfileUpdates
+    applyProfileUpdates,
+    updateDefaultMark
 }

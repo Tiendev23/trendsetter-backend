@@ -105,7 +105,7 @@ exports.verifyOtp = async (req, res) => {
     //  Xoá OTP sau khi xác thực
     await Otp.deleteMany({ email });
     //  Tạo JWT token
-    const token = createJWT(user._id, 'reset-password', '10m');
+    const token = createJWT(user._id, 'reset-password', '5m');
     res.json({ message: "Xác thực OTP thành công", token });
 };
 
