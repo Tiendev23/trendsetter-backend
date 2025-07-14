@@ -2,7 +2,7 @@ const User = require('../models/userModel');
 const Order = require('../models/orderModel');
 const OrderDetail = require('../models/orderDetailModel');
 const { getEnrichedVariants } = require('../helpers/enrichVariant');
-const { applyProfileUpdates } = require('../helpers/userHelper');
+const { applyProfileUpdates, updateDefaultMark } = require('../helpers/userHelper');
 
 exports.getAllUsers = async (req, res) => {
     try {
@@ -100,7 +100,7 @@ exports.addFavorite = async (req, res) => {
 
 exports.removeFavorite = async (req, res) => {
     try {
-        const userId = req.params.id;
+        const userId = req.params.userId;
         const variantId = req.params.variantId;
 
         const user = await User.findById(userId);
@@ -130,9 +130,7 @@ exports.addShippingAddress = async (req, res) => {
 
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'User không tồn tại' });
-        if (address.isDefault) {
-            user.shippingAddresses.forEach(addr => addr.isDefault = false);
-        }
+        updateDefaultMark(user, address.isDefault);
 
         user.shippingAddresses.push(address);
         await user.save();
@@ -143,9 +141,36 @@ exports.addShippingAddress = async (req, res) => {
     }
 };
 
+exports.updateShippingAddress = async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const addressId = req.params.addressId
+        const { fullName, phone, streetDetails, ward, district, city, isDefault } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User không tồn tại' });
+
+        const address = user.shippingAddresses.find(a => a._id.toString() === addressId);
+        if (!address) return res.status(404).json({ message: 'Địa chỉ không tồn tại' });
+        address.fullName = fullName;
+        address.phone = phone;
+        address.streetDetails = streetDetails;
+        address.ward = ward;
+        address.district = district;
+        address.city = city;
+        updateDefaultMark(user, isDefault);
+        address.isDefault = isDefault;
+
+        await user.save();
+        res.json({ message: 'Đã cập nhật địa chỉ giao hàng', address});
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 exports.removeShippingAddress = async (req, res) => {
     try {
-        const userId = req.params.id;
+        const userId = req.params.userId;
         const addressId = req.params.addressId;
 
         const user = await User.findById(userId);

@@ -18,6 +18,8 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const emailRouters = require('./routes/emailRoutes')
 // Biến thể
 const variantRoutes = require('./routes/variantRoutes');
+// Campaign event sale off
+const campaignRoutes = require('./routes/campaignRoutes');
 
 
 const app = express();
@@ -57,6 +59,10 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/email', emailRouters);
 // Cho các biến thể
 app.use('/api/variants', variantRoutes);
+// Campaign
+app.use('/api/campaigns', campaignRoutes);
+
+require('./campaignCron'); // gọi cron job khi server khởi động
 
 // Lắng nghe server
 const PORT = process.env.PORT || 5000;

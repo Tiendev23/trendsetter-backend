@@ -15,8 +15,19 @@ const campaignSchema = new mongoose.Schema({
     value: { type: Number, required: true, min: 0 },
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
-    imageUrl: { type: String, required: true },
-    active: { type: Boolean, default: true },
-}, { timestamps: true, optimisticConcurrency: true });
+    imageUrl: { type: String },
+    // appliedCount: { type: Number, default: 0 },
+    active: { type: Boolean },
+    manualOverride: { type: Boolean, default: false }
+}, {
+    timestamps: true,
+    optimisticConcurrency: true
+});
+
+campaignSchema.pre('save', function (next) {
+    const now = new Date();
+    this.active = this.startDate <= now && now <= this.endDate;
+    next();
+});
 
 module.exports = mongoose.model('Campaign', campaignSchema);

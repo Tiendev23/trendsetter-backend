@@ -36,7 +36,13 @@ const deleteCloudinaryImage = async (imageUrl) => {
     }
 };
 
+const updateCloudinaryImage = async (imageUrl, file, folder) => {
+    await deleteCloudinaryImage(imageUrl);
+    return await uploadToCloudinary(file, folder);
+}
+
 module.exports = {
     uploadToCloudinary,
     deleteCloudinaryImage,
+    updateCloudinaryImage
 };
