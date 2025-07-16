@@ -38,7 +38,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 
 // Kết nối MongoDB (thay đổi chuỗi kết nối phù hợp)
-mongoose.connect(MONGO_URI, {
+mongoose.connect(LOCAL_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 })
