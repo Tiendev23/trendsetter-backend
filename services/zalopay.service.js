@@ -46,7 +46,7 @@ exports.createTransaction = async (req, res) => {
             await Transaction.create({
                 user: userId,
                 amount,
-                paymentMethod: 'zalopay',
+                paymentMethod: req.params.provider,
                 providerTransactionId: app_trans_id
             });
             return res.json(response.data);
@@ -65,9 +65,9 @@ exports.handleCallback = async (req, res) => {
     if (reqMac !== expectedMac) return res.json({ code: -1, message: "MAC không hợp lệ" });
 
     const data = JSON.parse(reqData);
+    console.log('data', data);
     const embed_data = JSON.parse(data.embed_data);
     const items = JSON.parse(data.item);
-    console.log('data', data);
     const shippingFee = orderService.calculateShippingFee(data.amount, items);
 
     const transaction = await Transaction.findOneAndUpdate(
