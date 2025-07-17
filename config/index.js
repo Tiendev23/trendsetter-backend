@@ -3,8 +3,8 @@ const cloudinary = require("cloudinary").v2;
 const nodemailer = require('nodemailer');
 const PayOS = require('@payos/node');
 
-const BASE_URL  ='https://trendsetter-backend.onrender.com';
-// const BASE_URL = 'https://57b3a6d4d200.ngrok-free.app';
+const BASE_URL = 'https://trendsetter-backend.onrender.com';
+// const BASE_URL = 'https://5424d52bd6cb.ngrok-free.app';
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     service: 'gmail',
@@ -43,7 +43,7 @@ const payOS = new PayOS(
         console.log("PayOS webhook confirmed");
     } catch (error) {
         console.error('error', error);
-        
+
         console.error("Failed to confirm PayOS webhook:", error.message);
     }
 })();
