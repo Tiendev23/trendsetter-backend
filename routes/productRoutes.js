@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
-const multer = require('multer');
-const path = require('path');
+const upload = require('../middlewares/upload')
 
 // const storage = multer.diskStorage({
 //     destination: function (req, file, cb) {
@@ -14,14 +13,16 @@ const path = require('path');
 //     }
 // });
 // const upload = multer({ storage });
-const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/', productController.getAllProducts);
-router.get('/:id', productController.getProductById);
-router.get('/:id/reviews', productController.getReviewsById);
+router.get('/:productId', productController.getProductById);
+router.get('/:productId/reviews', productController.getReviewsById);
+router.post('/', upload.any(), productController.createProduct);
+router.patch('/:productId', productController.updateProduct);
+
 router.delete('/:id', productController.deleteProduct);
 // Cho phép upload nhiều trường: image và banner
-router.post('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), productController.createProduct);
+// router.post('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), productController.createProduct);
 router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), productController.updateProduct);
 
 module.exports = router;

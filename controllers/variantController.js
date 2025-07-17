@@ -1,7 +1,7 @@
 const { Product, ProductVariant: productVariant } = require('../models/productModel');
 const Category = require('../models/categoryModel');
 const { cloudinary } = require('../config');
-const { getEnrichedVariants } = require('../helpers/enrichVariant');
+const { getEnrichedVariants } = require('../helpers/productHelper');
 
 const parseMultiValue = (value) => {
     if (!value) return undefined;

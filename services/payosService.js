@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { payosInstance, CHECKSUM_KEY } = require("../config");
 
-exports.createPayment = async (paymentData) => {
+exports.createTransaction = async (paymentData) => {
     try {
         const { amount, buyerName, buyerEmail, buyerPhone, buyerAddress, items } = paymentData;
         const orderCode = Math.floor(Date.now() / 1000);

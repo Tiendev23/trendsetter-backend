@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const orderDetailSchema = new mongoose.Schema({
     order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
+    campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },
     productVariant: { type: mongoose.Schema.Types.ObjectId, ref: 'ProductVariant', required: true },
     productName: { type: String, required: true },
     productQuantity: { type: Number, required: true, min: 1 },
