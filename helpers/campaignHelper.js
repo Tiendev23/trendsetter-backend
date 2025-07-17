@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { Product } = require('../models/productModel');
 const Category = require('../models/categoryModel');
 const Brand = require('../models/brandModel');
+const throwError = require('./errorHelper')
 
 const getCampaignForProduct = async (product) => {
     const now = new Date();
@@ -37,11 +38,13 @@ const getCampaignForProductCached = async (product, campaignCache) => {
     return campaign;
 };
 
-const toArray = (input) => {
-    if (!input) return [];
-    if (Array.isArray(input)) return input;
-    if (typeof input === 'string') return [input];
-    return [];
+const safeParseArray = (value) => {
+    try {
+        return value ? JSON.parse(value) : [];
+    } catch {
+        return [];
+    }
+
 };
 
 const isValidObjectIdArray = async (ids, model) => {
@@ -52,28 +55,28 @@ const isValidObjectIdArray = async (ids, model) => {
 
 const campaignPropsValidator = async (props) => {
     if (!props.products?.length && !props.categories?.length && !props.brands?.length)
-        throw new Error('Chiến dịch phải áp dụng cho ít nhất một nhóm sản phẩm, danh mục hoặc thương hiệu');
+        throwError('Bad Request', 'Chiến dịch phải áp dụng cho ít nhất một nhóm sản phẩm, danh mục hoặc thương hiệu', 400);
 
     if (!props.title || !props.type || !props.value || !props.startDate || !props.endDate)
-        throw new Error('Thiếu thông tin chiến dịch');
+        throwError('Bad Request', 'Thiếu thông tin chiến dịch', 400);
 
     const validProducts = await isValidObjectIdArray(props.products, Product);
     const validCategories = await isValidObjectIdArray(props.categories, Category);
     const validBrands = await isValidObjectIdArray(props.brands, Brand);
     if (!validProducts || !validCategories || !validBrands)
-        throw new Error('Danh sách sản phẩm, danh mục hoặc thương hiệu không hợp lệ');
+        throwError('Not Found', 'Danh sách sản phẩm, danh mục hoặc thương hiệu không hợp lệ', 404);
 
     if (props.type === 'percentage' && (props.value < 1 || props.value > 100))
-        throw new Error('Giá trị phần trăm không hợp lệ');
+        throwError('Unprocessable Entity', 'Giá trị phần trăm không hợp lệ', 422);
 
     if (new Date(props.startDate) >= new Date(props.endDate))
-        throw new Error('Ngày bắt đầu phải trước ngày kết thúc');
+        throwError('Unprocessable Entity', 'Ngày bắt đầu phải trước ngày kết thúc', 422);
 };
 
 
 module.exports = {
     getCampaignForProductCached,
-    toArray,
+    safeParseArray,
     isValidObjectIdArray,
     campaignPropsValidator,
 };

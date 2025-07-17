@@ -14,6 +14,8 @@ const orderRoutes = require('./routes/orderRoutes');
 const authRoutes = require('./routes/authRoutes');
 // Thanh toán
 const paymentRoutes = require('./routes/paymentRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
 // VeryfyOtp
 const emailRouters = require('./routes/emailRoutes')
 // Biến thể
@@ -54,7 +56,9 @@ app.use('/api/orders', orderRoutes);
 // Auth
 app.use('/api/auth', authRoutes);
 // Cho thanh toán
-app.use('/api/payments', paymentRoutes);
+app.use('/api/payments', paymentRoutes); // sớm bỏ
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/webhooks', webhookRoutes);
 // VerifyOtp
 app.use('/api/email', emailRouters);
 // Cho các biến thể
@@ -62,7 +66,7 @@ app.use('/api/variants', variantRoutes);
 // Campaign
 app.use('/api/campaigns', campaignRoutes);
 
-require('./campaignCron'); // gọi cron job khi server khởi động
+require('./cron/campaignCron'); // gọi cron job khi server khởi động
 
 // Lắng nghe server
 const PORT = process.env.PORT || 5000;

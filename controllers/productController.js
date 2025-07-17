@@ -1,8 +1,12 @@
 const { Product, ProductVariant, VariantSize } = require('../models/productModel');
+const Category = require('../models/categoryModel');
+const Brand = require('../models/brandModel');
 const Review = require('../models/reviewModel');
 const { getCampaignForProductCached } = require('../helpers/campaignHelper');
 const { uploadToCloudinary, deleteCloudinaryImage } = require('../services/cloudinaryService');
-const { getFinalPrice } = require('../helpers/enrichVariant');
+const { getFinalPrice, setVariantsActiveByProduct, enrichVariants, enrichRating } = require('../helpers/productHelper');
+const validateExistence = require('../utils/validates');
+const throwError = require('../helpers/errorHelper');
 
 // Hàm lấy URL file upload theo field name
 const getFileUrl = (req, fieldName) => {
@@ -20,9 +24,18 @@ exports.getAllProducts = async (req, res) => {
         if (req.query.brand) filter.brand = req.query.brand;
 
         const products = await Product.find(filter)
-            .populate('category')
-            .populate('brand');
+            .populate('category', 'name')
+            .populate('brand', 'name')
+            .lean();
 
+        await Promise.all(
+            products.map(async product => {
+                const campaign = await getCampaignForProductCached(product, new Map());
+                product.campaign = campaign;
+                product.variants = await enrichVariants(product._id, campaign);
+                product.rating = await enrichRating(product._id);
+            })
+        );
         res.json(products);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -44,37 +57,17 @@ exports.getAllProducts = async (req, res) => {
 
 exports.getProductById = async (req, res) => {
     try {
-        const { id } = req.params;
-        const product = await Product.findById(id)
+        const productId = req.params.productId;
+        await validateExistence(Product, productId);
+
+        const product = await Product.findById(productId)
             .populate('category', 'name')
             .populate('brand', 'name')
             .lean();
-        if (!product) return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
-
         const campaign = await getCampaignForProductCached(product, new Map());
         product.campaign = campaign;
-
-        const variants = await ProductVariant.find({ product: product._id }).lean();
-        const enrichedVariants = await Promise.all(
-            variants.map(async variant => {
-                const finalPrice = getFinalPrice(variant.basePrice, campaign);
-                const inventories = await VariantSize.find({ productVariant: variant._id }, '-productColor');
-                return {
-                    ...variant,
-                    finalPrice,
-                    inventories
-                };
-            })
-        );
-        product.variants = enrichedVariants;
-
-        const reviews = await Review.find({ product: product._id });
-        const avgRating =
-            reviews.reduce((sum, r) => sum + r.rating, 0) / (reviews.length || 1);
-        product.rating = {
-            average: avgRating.toFixed(1),
-            count: reviews.length
-        };
+        product.variants = await enrichVariants(productId, campaign);
+        product.rating = await enrichRating(productId);
 
         res.json(product);
     } catch (err) {
@@ -85,11 +78,10 @@ exports.getProductById = async (req, res) => {
 
 exports.getReviewsById = async (req, res) => {
     try {
-        const { id } = req.params;
-        if (!await Product.findById(id))
-            return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
+        const productId = req.params.productId;
+        await validateExistence(Product, productId);
 
-        const reviews = await Review.find({ product: id }, '-product')
+        const reviews = await Review.find({ product: productId }, '-product')
             .populate('user', 'username fullName avatar')
             .populate('orderDetail', 'productSize productColor')
             .sort({ createdAt: -1 });
@@ -101,6 +93,7 @@ exports.getReviewsById = async (req, res) => {
     }
 };
 
+/** old createProduct
 exports.createProduct = async (req, res) => {
     try {
         const { name, price, category, brand, description, sizes, colors } = req.body;
@@ -158,7 +151,62 @@ exports.createProduct = async (req, res) => {
         res.status(400).json({ message: error.message });
     }
 };
+ */
+exports.createProduct = async (req, res) => {
+    try {
+        const { category, brand, name, gender, description, variants } = req.body;
+        const files = req.files;
 
+        if (!category || !brand || !name || !variants)
+            throwError("Bad Request", "Thiếu thông tin sản phẩm", 400);
+        await validateExistence(Category, category);
+        await validateExistence(Brand, brand);
+
+        const parsedVariants = JSON.parse(variants); // parse từ chuỗi JSON
+        const product = await Product.create({
+            category, brand, name, gender, description
+        });
+        const objProduct = product.toObject();
+
+        const variantDocs = [];
+        for (let index = 0; index < parsedVariants.length; index++) {
+            const { color, basePrice, inventories } = parsedVariants[index];
+            const imageFiles = files?.filter(file => file.fieldname === `images_${index}`);
+            const images = await Promise.all(
+                imageFiles.map(file => uploadToCloudinary(file, 'products'))
+            );
+            const variant = await ProductVariant.create({
+                product: product._id,
+                color,
+                basePrice,
+                images
+            });
+            const objVariant = variant.toObject();
+
+            const inventoryDocs = [];
+            for (const obj of inventories) {
+                const { size, stock } = obj;
+                const inventory = await VariantSize.create({
+                    productVariant: variant._id,
+                    size,
+                    stock
+                });
+                inventoryDocs.push(inventory);
+            }
+
+            objVariant.inventories = inventoryDocs;
+            variantDocs.push(objVariant);
+        }
+
+        objProduct.variants = variantDocs;
+        res.status(201).json({ message: 'Tạo sản phẩm thành công', product: objProduct });
+    } catch (error) {
+        const statusCode = error.status || 500;
+        res.status(statusCode).json({ message: error.message });
+    }
+};
+
+/** old updateProduct
 exports.updateProduct = async (req, res) => {
     try {
         const { name, price, category, brand, description, sizes, colors } = req.body;
@@ -229,6 +277,31 @@ exports.updateProduct = async (req, res) => {
         res.json(updatedProduct);
     } catch (error) {
         res.status(400).json({ message: error.message });
+    }
+};
+ */
+exports.updateProduct = async (req, res) => {
+    try {
+        const productId = req.params.productId;
+        const { category, brand, name, gender, description, active } = req.body;
+
+        await validateExistence(Product, productId);
+        const product = await Product.findById(productId);
+
+        if (category) product.category = category;
+        if (brand) product.brand = brand;
+        if (gender) product.gender = gender;
+        if (description) product.description = description;
+        if (typeof active === 'boolean') {
+            product.active = active;
+            await setVariantsActiveByProduct(productId, active);
+        }
+
+        await product.save();
+        res.json({ message: 'Cập nhật sản phẩm thành công', product });
+    } catch (error) {
+        const statusCode = error.status || 500;
+        res.status(statusCode).json({ message: error.message });
     }
 };
 

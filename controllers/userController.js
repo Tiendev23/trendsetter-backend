@@ -1,7 +1,7 @@
 const User = require('../models/userModel');
 const Order = require('../models/orderModel');
 const OrderDetail = require('../models/orderDetailModel');
-const { getEnrichedVariants } = require('../helpers/enrichVariant');
+const { getEnrichedVariants } = require('../helpers/productHelper');
 const { applyProfileUpdates, updateDefaultMark } = require('../helpers/userHelper');
 
 exports.getAllUsers = async (req, res) => {
@@ -69,7 +69,7 @@ exports.deleteUser = async (req, res) => {
 
 exports.getUserFavorites = async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
+        const user = await User.findById(req.params.userId);
         if (!user) return res.status(404).json({ message: 'User không tồn tại' });
         const filter = { _id: { $in: user.favorites } };
         const enrichedVariants = await getEnrichedVariants(filter);
@@ -82,7 +82,7 @@ exports.getUserFavorites = async (req, res) => {
 
 exports.addFavorite = async (req, res) => {
     try {
-        const userId = req.params.id;
+        const userId = req.params.userId;
         const variantId = req.body.variantId;
 
         const user = await User.findById(userId);
@@ -115,7 +115,7 @@ exports.removeFavorite = async (req, res) => {
 
 exports.getUserAddresses = async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
+        const user = await User.findById(req.params.userId);
         if (!user) return res.status(404).json({ message: 'User không tồn tại' });
         const {addressId} = req.query;
         if (addressId) {
@@ -131,7 +131,7 @@ exports.getUserAddresses = async (req, res) => {
 
 exports.addShippingAddress = async (req, res) => {
     try {
-        const userId = req.params.id;
+        const userId = req.params.userId;
         const address = req.body;
 
         const user = await User.findById(userId);
@@ -168,7 +168,7 @@ exports.updateShippingAddress = async (req, res) => {
         address.isDefault = isDefault;
 
         await user.save();
-        res.json({ message: 'Đã cập nhật địa chỉ giao hàng', address});
+        res.json({ message: 'Đã cập nhật địa chỉ giao hàng', address });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -192,7 +192,7 @@ exports.removeShippingAddress = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        const userId = req.params.id;
+        const userId = req.params.userId;
         const props = req.body; // props là { username, fullName, gender, birthday }
         const avatar = req.files?.avatar?.[0] || null;
 

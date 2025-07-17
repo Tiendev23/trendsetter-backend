@@ -1,5 +1,5 @@
 const { updateCloudinaryImage } = require('../services/cloudinaryService');
-const { throwError } = require('./errorHelper')
+const throwError = require('./errorHelper')
 const MIN_YEAR = 1900;
 
 const validateBirthday = (value) => {
@@ -20,7 +20,7 @@ const applyProfileUpdates = async (user, props, image) => {
     if (props.gender) user.gender = props.gender;
     if (props.birthday) {
         if (!validateBirthday(new Date(props.birthday))) {
-            throwError('ValidationError', 'Ngày sinh không hợp lệ', 400)
+            throwError('Bad Request', 'Ngày sinh không hợp lệ', 400)
         }
         user.birthday = new Date(props.birthday);
     }
