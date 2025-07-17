@@ -117,6 +117,12 @@ exports.getUserAddresses = async (req, res) => {
     try {
         const user = await User.findById(req.params.userId);
         if (!user) return res.status(404).json({ message: 'User không tồn tại' });
+        const {addressId} = req.query;
+        if (addressId) {
+            const address = user.shippingAddresses.find(addr => addr._id.toString() === addressId);
+            if (!address) return res.status(404).json({message:"Không tìm thấy địa chỉ này"});
+            return res.json(address);
+        }
         res.json(user.shippingAddresses);
     } catch (error) {
         res.status(500).json({ message: error.message });
