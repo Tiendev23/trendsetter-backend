@@ -1,12 +1,9 @@
-const { Product, ProductVariant, VariantSize } = require('../models/productModel');
-const Category = require('../models/categoryModel');
-const Brand = require('../models/brandModel');
-const Review = require('../models/reviewModel');
+const { Product, ProductVariant, VariantSize, Category, Brand, Review } = require('../models');
 const { getCampaignForProductCached } = require('../helpers/campaignHelper');
 const { uploadToCloudinary, deleteCloudinaryImage } = require('../services/cloudinaryService');
 const { getFinalPrice, setVariantsActiveByProduct, enrichVariants, enrichRating } = require('../helpers/productHelper');
-const validateExistence = require('../utils/validates');
-const throwError = require('../helpers/errorHelper');
+const { validateExistence } = require('../utils/validates');
+const { throwError } = require('../helpers/errorHelper');
 
 // Hàm lấy URL file upload theo field name
 const getFileUrl = (req, fieldName) => {
@@ -57,13 +54,12 @@ exports.getAllProducts = async (req, res) => {
 
 exports.getProductById = async (req, res) => {
     try {
-        const productId = req.params.productId;
-        await validateExistence(Product, productId);
-
+        const productId = await validateExistence(Product, req.params.productId);
         const product = await Product.findById(productId)
             .populate('category', 'name')
             .populate('brand', 'name')
             .lean();
+
         const campaign = await getCampaignForProductCached(product, new Map());
         product.campaign = campaign;
         product.variants = await enrichVariants(productId, campaign);
@@ -71,8 +67,8 @@ exports.getProductById = async (req, res) => {
 
         res.json(product);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server Error' + err.message });
+        const status = err.statusCode || 500;
+        res.status(status).json({ message: err.message });
     }
 };
 
@@ -83,13 +79,13 @@ exports.getReviewsById = async (req, res) => {
 
         const reviews = await Review.find({ product: productId }, '-product')
             .populate('user', 'username fullName avatar')
-            .populate('orderDetail', 'productSize productColor')
+            .populate('orderItem', 'productSize productColor')
             .sort({ createdAt: -1 });
 
         res.json(reviews);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server Error' + err.message });
+        const status = err.statusCode || 500;
+        res.status(status).json({ message: err.message });
     }
 };
 
@@ -101,8 +97,6 @@ exports.createProduct = async (req, res) => {
         //         const image = getFileUrl(req, 'image');
         //         const banner = getFileUrl(req, 'banner');
         let image = null, banner = null;
-        image = await uploadToCloudinary(req.files.image?.[0], 'products');
-        banner = await uploadToCloudinary(req.files.banner?.[0], 'banners');
 
         // Xử lý sizes
         let parsedSizes = [];
@@ -173,7 +167,7 @@ exports.createProduct = async (req, res) => {
             const { color, basePrice, inventories } = parsedVariants[index];
             const imageFiles = files?.filter(file => file.fieldname === `images_${index}`);
             const images = await Promise.all(
-                imageFiles.map(file => uploadToCloudinary(file, 'products'))
+                imageFiles.map(file => uploadToCloudinary(file, 'Products'))
             );
             const variant = await ProductVariant.create({
                 product: product._id,
@@ -201,8 +195,8 @@ exports.createProduct = async (req, res) => {
         objProduct.variants = variantDocs;
         res.status(201).json({ message: 'Tạo sản phẩm thành công', product: objProduct });
     } catch (error) {
-        const statusCode = error.status || 500;
-        res.status(statusCode).json({ message: error.message });
+        const status = error.statusCode || 500;
+        res.status(status).json({ message: error.message });
     }
 };
 
@@ -215,13 +209,7 @@ exports.updateProduct = async (req, res) => {
         // const image = getFileUrl(req, 'image');
         // const banner = getFileUrl(req, 'banner');
         // Xử lý upload ảnh
-        const image = req.files.image
-            ? await uploadToCloudinary(req.files.image[0], "products")
-            : product.image;
 
-        const banner = req.files.banner
-            ? await uploadToCloudinary(req.files.banner[0], "banners")
-            : product.banner;
 
         // Xóa ảnh cũ trên Cloudinary
         await deleteCloudinaryImage(product.image);
@@ -300,8 +288,8 @@ exports.updateProduct = async (req, res) => {
         await product.save();
         res.json({ message: 'Cập nhật sản phẩm thành công', product });
     } catch (error) {
-        const statusCode = error.status || 500;
-        res.status(statusCode).json({ message: error.message });
+        const status = error.statusCode || 500;
+        res.status(status).json({ message: error.message });
     }
 };
 

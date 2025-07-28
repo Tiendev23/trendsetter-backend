@@ -1,4 +1,4 @@
-const { Product, ProductVariant: productVariant } = require('../models/productModel');
+const { Product, ProductVariant } = require('../models');
 const Category = require('../models/categoryModel');
 const { cloudinary } = require('../config');
 const { getEnrichedVariants } = require('../helpers/productHelper');

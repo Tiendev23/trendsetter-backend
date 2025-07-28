@@ -1,7 +1,6 @@
-const User = require('../models/userModel');
+const { User, Otp } = require('../models');
 const { createJWT } = require('../utils/jwt');
 const bcrypt = require('bcrypt');
-const Otp = require('../models/otpModel')
 const sendOtpMail = require('../services/nodemailer/nodemailerService');
 
 exports.login = async (req, res) => {

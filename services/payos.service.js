@@ -1,7 +1,6 @@
-const Transaction = require('../models/transactionModel');
-const User = require('../models/userModel');
+const { User, Transaction } = require('../models');
 const { CHECKSUM_KEY, payOS, BASE_URL } = require('../config');
-const throwError = require('../helpers/errorHelper');
+const { throwError } = require('../helpers/errorHelper');
 const moment = require('moment');
 const Crypto = require('crypto');
 const orderService = require('./order.service');
@@ -57,14 +56,14 @@ exports.createTransaction = async (req, res) => {
         });
         res.json(response);
     } catch (error) {
-        const statusCode = error.status || 500;
-        res.status(statusCode).json({ message: error.message });
+        const status = error.statusCode || 500;
+        res.status(status).json({ message: error.message });
     }
 };
 
 
 exports.handleCallback = async (req, res) => {
-    
+
     try {
         const webhookData = payOS.verifyPaymentWebhookData(req.body);
         if (
@@ -79,11 +78,10 @@ exports.handleCallback = async (req, res) => {
         const paymentLink = await payOS.getPaymentLinkInformation(webhookData.paymentLinkId);
 
         const status = paymentLink.status === 'PAID' ? 'completed' : 'cancelled';
-        const transaction = await Transaction.findOneAndUpdate(
-            { providerTransactionId: paymentLink.orderCode.toString() },
-            { status }
-        );
+        const transaction = await Transaction.findOne({ providerTransactionId: paymentLink.orderCode.toString() });
         if (!transaction) throwError("Not Found", "Không tìm thấy giao dịch", 404);
+        transaction.status = status;
+        await transaction.save();
         const metadata = JSON.parse(LZString.decompressFromBase64(transaction.metadata));
         const shippingFee = orderService.calculateShippingFee(transaction.amount, metadata.items);
         await orderService.createOrderFromTransaction({
@@ -103,6 +101,6 @@ exports.handleCallback = async (req, res) => {
         });
     } catch (error) {
         console.error("Webhook error:", error.message);
-        res.status(200).json({ message: "Webhook received but not processed" }); // Trả về 200 để không làm fail webhook
+        res.status(200).json({ message: "Webhook received but not processed\n" + error?.message }); // Trả về 200 để không làm fail webhook
     }
 };

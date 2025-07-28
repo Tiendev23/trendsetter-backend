@@ -1,17 +1,18 @@
 const mongoose = require('mongoose');
-const throwError = require('../helpers/errorHelper');
+const { throwError } = require('../helpers/errorHelper');
 
 const validateExistence = async (Model, id) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        throwError('Invalid', 'ID không hợp lệ', 400);
+        throwError('INVALID_ID', `ID ${Model.modelName} không hợp lệ`, 400);
     }
-
     const exists = await Model.exists({ _id: id });
     if (!exists) {
-        throwError('Not Found', `${Model.modelName} không tồn tại`, 404);
+        throwError('ID_NOT_FOUND', `${Model.modelName} không tồn tại`, 404);
     }
 
-    return true;
+    return exists;
 };
 
-module.exports = validateExistence;
+module.exports = {
+    validateExistence,
+};
