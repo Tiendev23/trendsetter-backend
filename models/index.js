@@ -1,0 +1,15 @@
+module.exports = {
+    Product: require('./productModel'),
+    ProductVariant: require('./productVariantModel'),
+    VariantSize: require('./variantSizeModel'),
+    Brand: require('./brandModel'),
+    Campaign: require('./campaignModel'),
+    CartItem: require('./cartItemModel'),
+    Category: require('./categoryModel'),
+    OrderItem: require('./orderItemModel'),
+    Order: require('./orderModel'),
+    Otp: require('./otpModel'),
+    Review: require('./reviewModel'),
+    User: require('./userModel'),
+    Transaction: require('./transactionModel'),
+}
