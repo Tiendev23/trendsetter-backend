@@ -4,7 +4,7 @@ const nodemailer = require('nodemailer');
 const PayOS = require('@payos/node');
 
 const BASE_URL = 'https://trendsetter-backend.onrender.com';
-// const BASE_URL = 'https://5424d52bd6cb.ngrok-free.app';
+// const BASE_URL = 'https://1e3ef477f165.ngrok-free.app';
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     service: 'gmail',
@@ -51,10 +51,6 @@ const payOS = new PayOS(
 
 const zalopayInstance = require('axios').create({
     baseURL: process.env.ZALOPAY_URL,
-    headers: {
-        "x-client-id": process.env.CLIENT_ID,
-        "x-api-key": process.env.API_KEY,
-    },
 });
 
 const ZALOPAY_CONFIG = {

@@ -19,8 +19,16 @@ router.delete('/:userId/favorites/:variantId', userController.removeFavorite);
 
 router.get('/:userId/addresses', userController.getUserAddresses);
 router.post('/:userId/addresses', userController.addShippingAddress);
-router.patch('/:userId/addresses/:addressId', userController.updateShippingAddress);
+router.put('/:userId/addresses/:addressId', userController.updateShippingAddress);
 router.delete('/:userId/addresses/:addressId', userController.removeShippingAddress);
+
+router.get('/:userId/cart', userController.getUserCart);
+router.post('/:userId/cart', userController.addOrUpdateCartItem);
+router.patch('/:userId/cart/:sizeId', userController.updateCartItem);
+router.delete('/:userId/cart/remove-many', userController.removeManyCartItem);
+router.delete('/:userId/cart/:sizeId', userController.removeCartItem);
+router.delete('/:userId/cart', userController.clearCart);
+router.post('/:userId/cart/sync', userController.syncCart);
 
 router.get('/:userId/orders', userController.getOrdersById);
 
