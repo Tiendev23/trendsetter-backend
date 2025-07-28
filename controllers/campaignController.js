@@ -30,7 +30,7 @@ exports.createCampaign = async (req, res) => {
         campaignPropsValidator({ products, categories, brands, title, type, value, startDate, endDate }, res);
 
         let imageUrl = null;
-        if (image) imageUrl = await uploadToCloudinary(image, 'campaigns');
+        if (image) imageUrl = await uploadToCloudinary(image, 'Campaigns');
         const campaign = await Campaign.create({
             products,
             categories,
@@ -45,8 +45,8 @@ exports.createCampaign = async (req, res) => {
         });
         res.status(201).json({ message: 'Tạo Campaign thành công', campaign });
     } catch (error) {
-        const statusCode = error.status || 500;
-        res.status(statusCode).json({ message: error.message });
+        const status = error.statusCode || 500;
+        res.status(status).json({ message: error.message });
     }
 };
 
@@ -79,13 +79,13 @@ exports.updateCampaign = async (req, res) => {
         };
 
         if (!active) updateFields.manualOverride = true;
-        if (image) updateFields.imageUrl = await updateCloudinaryImage(campaign.imageUrl, image, 'campaigns');
+        if (image) updateFields.imageUrl = await updateCloudinaryImage(campaign.imageUrl, image, 'Campaigns');
 
         Object.assign(campaign, updateFields);
         await campaign.save();
         res.status(200).json({ message: 'Cập nhật Campaign thành công', campaign });
     } catch (error) {
-        const statusCode = error.status || 500;
-        res.status(statusCode).json({ message: error.message });
+        const status = error.statusCode || 500;
+        res.status(status).json({ message: error.message });
     }
 };

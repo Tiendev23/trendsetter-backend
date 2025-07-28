@@ -1,15 +1,13 @@
-const Order = require('../models/orderModel');
-const OrderDetail = require('../models/orderDetailModel');
-const Transaction = require('../models/transactionModel');
-const throwError = require('../helpers/errorHelper');
+
+const { throwError } = require('../helpers/errorHelper');
+const { Order, User, Transaction, OrderItem } = require('../models');
 const validateExistence = require('../utils/validates');
-const User = require('../models/userModel');
 
 exports.getAllOrders = async (req, res) => {
     try {
         const orders = await Order.find()
             .populate('user', 'username fullName email')
-            .populate('transaction')
+            .populate('transaction', '-metadata')
             .sort({ createdAt: -1 });
         res.json(orders);
     } catch (error) {
@@ -49,10 +47,13 @@ exports.getOrderById = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id)
             .populate('user', 'username fullName email')
-            .populate('transaction')
+            .populate({
+                path: 'transaction',
+                select: '-metadata'
+            })
             .lean();
         if (!order) return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
-        const items = await OrderDetail.find({ order: order._id }).lean();
+        const items = await OrderItem.find({ order: order._id }).lean();
 
         const enrichedOrder = {
             ...order,
@@ -85,23 +86,24 @@ exports.createOrder = async (req, res) => {
             { version: false }
         );
         const orderItems = await Promise.all(
-            items.map(item => OrderDetail.create({
+            items.map(item => OrderItem.create({
                 order: order._id,
-                productVariant: item.variant._id,
-                productName: item.name,
-                productQuantity: item.quantity,
-                productSize: item.variant.size.size,
-                productColor: item.variant.color,
-                productBasePrice: item.variant.basePrice,
-                productFinalPrice: item.variant.finalPrice,
-                productImageUrl: item.variant.imageUrl
+                variant: item.variant,
+                size: item.size._id,
+                campaign: item.campaign,
+                name: item.name,
+                color: item.color,
+                basePrice: item.basePrice,
+                finalPrice: item.finalPrice,
+                imageUrl: item.imageUrl,
+                quantity: item.quantity,
             }))
         );
         order.set('items', orderItems);
         res.status(201).json({ message: 'Tạo đơn hàng thành công', order });
     } catch (error) {
-        const statusCode = error.status || 500;
-        res.status(statusCode).json({ message: error.message });
+        const status = error.statusCode || 500;
+        res.status(status).json({ message: error.message });
     }
 };
 

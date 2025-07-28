@@ -1,4 +1,3 @@
-// const Payment = require('../models/paymentModel');
 const { payosInstance, CHECKSUM_KEY, zalopayConfig, zalopayInstance } = require("../config");
 const moment = require("moment");
 const Crypto = require("crypto");
@@ -36,23 +35,6 @@ exports.handleWebhook = async (req, res) => {
         }
     } catch (err) {
         console.error(`Webhook error from ${req.provider}:`, err.message);
-        res.status(500).json({ message: err.message });
-    }
-};
-exports.handlePayOSWebhook = async (req, res) => {
-    try {
-        if (!req.body || !req.body.data || !req.body.signature) {
-            console.log("Webhook test received (incomplete payload):", req.body);
-            return res.status(200).send("OK"); // Trả về 200 để xác nhận webhook
-        }
-
-        const webhookData = PayOS.verifyPaymentWebhookData(req.body);
-        console.log("Webhook verified:", webhookData);
-
-        // Xử lý tiếp...
-        res.status(200).json({ message: "Webhook processed" });
-    } catch (err) {
-        console.error(`Webhook error from PayOS:`, err.message);
         res.status(500).json({ message: err.message });
     }
 };

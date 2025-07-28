@@ -15,7 +15,17 @@ exports.verifyToken = async (req, res, next) => {
         const user = await User.findById(decoded.userId).select('-password');
 
         if (!user) {
-            return res.status(401).json({ message: 'Token không hợp lệ - không tìm thấy người dùng' });
+            return res.status(401).json({ message: 'Token không hợp lệ' });
+        }
+
+        if (
+            req.params.userId &&
+            user.role !== 'admin' &&
+            user._id.toString() !== req.params.userId
+        ) {
+            return res
+                .status(403)
+                .json({ message: 'Không có quyền truy cập vào người dùng này' });
         }
 
         req.user = user;
@@ -43,7 +53,7 @@ exports.verifyTokenByPurpose = (expectedPurpose) => {
             if (!user) {
                 return res.status(404).json({ message: 'Người dùng không tồn tại' });
             }
-            
+
             req.user = user;
             next();
         } catch (error) {

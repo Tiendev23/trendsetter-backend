@@ -1,8 +1,19 @@
-const throwError = (name, message, statusCode = 500) => {
+const throwError = (code, message, statusCode = 500) => {
     const error = new Error(message);
-    error.name = name;
+    error.code = code;
     error.statusCode = statusCode;
     throw error;
 }
 
-module.exports = throwError;
+function resError(res, err, { defaultCode, defaultMessage }) {
+    const status = err.statusCode || 500;
+    const code = err.code || defaultCode;
+    const message = err.message || defaultMessage;
+
+    res.status(status).json({ code, message });
+}
+
+module.exports = {
+    throwError,
+    resError
+};

@@ -17,8 +17,12 @@ const userSchema = new mongoose.Schema({
         default: null,
     },
     role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
-    avatar: { type: String, default: 'https://res.cloudinary.com/trendsetter/image/upload/v1752307340/tl_kao2lo.webp' }, // URL mặc định cho avatar
-    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+    avatar: {
+        type: String,
+        default: 'https://example.com/default-avatar.png'
+        // default: 'https://res.cloudinary.com/trendsetter-app/image/upload/v1752860727/default-avatar.webp'
+    },
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ProductVariant' }],
     shippingAddresses: [
         {
             fullName: { type: String, required: true },

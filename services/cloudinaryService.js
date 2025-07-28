@@ -1,5 +1,5 @@
 const { cloudinary } = require('../config');
-const DEFAULT_AVATAR_PUBLIC_ID = 'v1752307340/default-avatar';
+const DEFAULT_AVATAR_PUBLIC_ID = 'v1752860727/default-avatar';
 
 const uploadToCloudinary = async (file, folder) => {
     if (!file) return null;

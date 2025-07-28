@@ -1,11 +1,8 @@
-const Campaign = require('../models/campaignModel');
+const { Campaign, Product, Category, Brand } = require('../models');
 const mongoose = require('mongoose');
-const { Product } = require('../models/productModel');
-const Category = require('../models/categoryModel');
-const Brand = require('../models/brandModel');
-const throwError = require('./errorHelper')
+const { throwError } = require('./errorHelper')
 
-const getCampaignForProduct = async (product) => {
+const getCampaignIdForProduct = async (product) => {
     const now = new Date();
     return await Campaign.findOne({
         active: true,
@@ -16,7 +13,7 @@ const getCampaignForProduct = async (product) => {
             { $or: [{ brands: { $size: 0 } }, { brands: product.brand }] },
             { $or: [{ products: { $size: 0 } }, { products: product._id }] }
         ]
-    });
+    }).select('_id');
 };
 
 const getCampaignForProductCached = async (product, campaignCache) => {
@@ -75,6 +72,7 @@ const campaignPropsValidator = async (props) => {
 
 
 module.exports = {
+    getCampaignIdForProduct,
     getCampaignForProductCached,
     safeParseArray,
     isValidObjectIdArray,

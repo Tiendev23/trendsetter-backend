@@ -24,7 +24,7 @@ const applyProfileUpdates = async (user, props, image) => {
         }
         user.birthday = new Date(props.birthday);
     }
-    if (image) user.avatar = await updateCloudinaryImage(user.avatar, image, 'avatars');
+    if (image) user.avatar = await updateCloudinaryImage(user.avatar, image, 'Avatars');
     await user.save();
     return filterUserProfile(user);
 };
