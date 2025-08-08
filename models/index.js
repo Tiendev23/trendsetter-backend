@@ -12,4 +12,7 @@ module.exports = {
     Review: require('./reviewModel'),
     User: require('./userModel'),
     Transaction: require('./transactionModel'),
+    Location: require('./locationModel'),
+    Favorite: require('./favoriteModel'),
+    Address: require('./addressModel')
 }

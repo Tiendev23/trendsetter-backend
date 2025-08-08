@@ -23,17 +23,6 @@ const userSchema = new mongoose.Schema({
         // default: 'https://res.cloudinary.com/trendsetter-app/image/upload/v1752860727/default-avatar.webp'
     },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ProductVariant' }],
-    shippingAddresses: [
-        {
-            fullName: { type: String, required: true },
-            phone: { type: String, required: true },
-            streetDetails: { type: String, required: true },
-            ward: { type: String, required: true },
-            district: { type: String, required: true },
-            city: { type: String, required: true },
-            isDefault: { type: Boolean, default: false }
-        }
-    ]
 }, { timestamps: true, optimisticConcurrency: true });
 
 

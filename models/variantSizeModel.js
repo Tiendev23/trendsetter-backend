@@ -7,4 +7,15 @@ const variantSizeSchema = new mongoose.Schema({
     active: { type: Boolean, default: true }
 }, { timestamps: true });
 
+variantSizeSchema.post('findOneAndUpdate', async function (doc) {
+    if (!doc) return;
+
+    if (doc.stock === 0 && doc.active !== false) {
+        await mongoose.model('VariantSize').updateOne(
+            { _id: doc._id },
+            { $set: { active: false } }
+        );
+    }
+});
+
 module.exports = mongoose.model('VariantSize', variantSizeSchema);

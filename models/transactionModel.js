@@ -7,7 +7,6 @@ const transactionSchema = new mongoose.Schema({
     paymentMethod: { type: String, required: true },
     providerTransactionId: { type: String, required: true, unique: true },
     status: { type: String, enum: ['pending', 'completed', 'cancelled', 'refunded'], default: 'pending' },
-    metadata: { type: mongoose.Schema.Types.Mixed }
 }, { timestamps: true, optimisticConcurrency: true });
 
 module.exports = mongoose.model('Transaction', transactionSchema);
