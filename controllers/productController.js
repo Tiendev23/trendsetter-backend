@@ -3,7 +3,7 @@ const { getCampaignForProductCached } = require('../helpers/campaignHelper');
 const { uploadToCloudinary, deleteCloudinaryImage } = require('../services/cloudinaryService');
 const { getFinalPrice, setVariantsActiveByProduct, enrichVariants, enrichRating } = require('../helpers/productHelper');
 const { validateExistence } = require('../utils/validates');
-const { throwError } = require('../helpers/errorHelper');
+const { throwError, resError } = require('../helpers/errorHelper');
 
 // Hàm lấy URL file upload theo field name
 const getFileUrl = (req, fieldName) => {
@@ -33,9 +33,12 @@ exports.getAllProducts = async (req, res) => {
                 product.rating = await enrichRating(product._id);
             })
         );
-        res.json(products);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.json({ data: products });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "PROD.FETCH_ALL",
+            defaultMessage: "Lấy tất cả sản phẩm thất bại"
+        });
     }
 };
 
@@ -47,11 +50,10 @@ exports.getAllProducts = async (req, res) => {
 
 //         if (!product) return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
 //         res.json(product);
-//     } catch (error) {
+//     } catch (err) {
 //         res.status(500).json({ message: error.message });
 //     }
 // };
-
 exports.getProductById = async (req, res) => {
     try {
         const productId = await validateExistence(Product, req.params.productId);
@@ -65,10 +67,12 @@ exports.getProductById = async (req, res) => {
         product.variants = await enrichVariants(productId, campaign);
         product.rating = await enrichRating(productId);
 
-        res.json(product);
+        res.json({ data: product });
     } catch (err) {
-        const status = err.statusCode || 500;
-        res.status(status).json({ message: err.message });
+        resError(res, err, {
+            defaultCode: "PROD.FETCH_BY_ID",
+            defaultMessage: "Lấy dữ liệu sản phẩm thất bại"
+        });
     }
 };
 
@@ -77,15 +81,32 @@ exports.getReviewsById = async (req, res) => {
         const productId = req.params.productId;
         await validateExistence(Product, productId);
 
-        const reviews = await Review.find({ product: productId }, '-product')
+        const reviews = await Review.find({ product: productId })
             .populate('user', 'username fullName avatar')
-            .populate('orderItem', 'productSize productColor')
-            .sort({ createdAt: -1 });
+            .populate({
+                path: 'orderItem',
+                select: 'size color',
+                populate: {
+                    path: 'size',
+                    select: 'size -_id'
+                }
+            })
+            .sort({ createdAt: -1 }).lean();
+        const transformedReviews = reviews.map((rv) => ({
+            ...rv,
+            orderItem: {
+                ...rv.orderItem,
+                size: rv.orderItem?.size?.size || null
+            }
+        }));
 
-        res.json(reviews);
+
+        res.json({ data: transformedReviews });
     } catch (err) {
-        const status = err.statusCode || 500;
-        res.status(status).json({ message: err.message });
+        resError(res, err, {
+            defaultCode: "PROD.FETCH_REVS",
+            defaultMessage: "Lấy đánh giá sản phẩm thất bại"
+        });
     }
 };
 
@@ -141,7 +162,7 @@ exports.createProduct = async (req, res) => {
         });
         const savedProduct = await product.save();
         res.status(201).json(savedProduct);
-    } catch (error) {
+    } catch (err) {
         res.status(400).json({ message: error.message });
     }
 };
@@ -193,10 +214,15 @@ exports.createProduct = async (req, res) => {
         }
 
         objProduct.variants = variantDocs;
-        res.status(201).json({ message: 'Tạo sản phẩm thành công', product: objProduct });
-    } catch (error) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        res.status(201).json({
+            message: 'Tạo sản phẩm thành công',
+            data: objProduct
+        });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "PROD.CREATE",
+            defaultMessage: "Tạo sản phẩm thất bại"
+        });
     }
 };
 
@@ -263,8 +289,8 @@ exports.updateProduct = async (req, res) => {
         if (!updatedProduct) return res.status(404).json({ message: 'Product not found' });
 
         res.json(updatedProduct);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
+    } catch (err) {
+        res.status(400).json({ message: err.message });
     }
 };
  */
@@ -286,10 +312,15 @@ exports.updateProduct = async (req, res) => {
         }
 
         await product.save();
-        res.json({ message: 'Cập nhật sản phẩm thành công', product });
-    } catch (error) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        res.json({
+            message: 'Cập nhật sản phẩm thành công',
+            data: product
+        });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "PROD.UPDATE",
+            defaultMessage: "Cập nhật sản phẩm thất bại"
+        });
     }
 };
 
@@ -300,9 +331,13 @@ exports.deleteProduct = async (req, res) => {
         await deleteCloudinaryImage(deletedProduct.image);
         await deleteCloudinaryImage(deletedProduct.banner);
 
-        if (!deletedProduct) return res.status(404).json({ message: 'Product not found' });
-        res.json({ message: 'Product deleted' });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+        if (!deletedProduct)
+            throwError("PROD.DELETE", "Không tìm thấy sản phẩm", 404);
+        res.json({ message: 'Product deleted', data: deletedProduct });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "PROD.DELETE",
+            defaultMessage: "Xoá sản phẩm thất bại"
+        });
     }
 };

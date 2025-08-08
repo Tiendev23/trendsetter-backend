@@ -29,7 +29,7 @@ const getCampaignForProductCached = async (product, campaignCache) => {
             { $or: [{ brands: { $size: 0 } }, { brands: product.brand._id || product.brand }] },
             { $or: [{ products: { $size: 0 } }, { products: product._id }] }
         ]
-    }).select('_id type value startDate endDate');
+    }).select('_id title type value startDate endDate');
 
     campaignCache.set(productId, campaign);
     return campaign;

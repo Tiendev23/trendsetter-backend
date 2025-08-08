@@ -19,7 +19,7 @@ router.delete('/:userId/favorites/:variantId', userController.removeFavorite);
 
 router.get('/:userId/addresses', userController.getUserAddresses);
 router.post('/:userId/addresses', userController.addShippingAddress);
-router.put('/:userId/addresses/:addressId', userController.updateShippingAddress);
+router.patch('/:userId/addresses/:addressId', userController.updateShippingAddress);
 router.delete('/:userId/addresses/:addressId', userController.removeShippingAddress);
 
 router.get('/:userId/cart', userController.getUserCart);

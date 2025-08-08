@@ -2,7 +2,7 @@
 const { resError, throwError } = require('../helpers/errorHelper');
 const { getEnrichedVariants, getEnrichedCartItems } = require('../helpers/productHelper');
 const { applyProfileUpdates, updateDefaultMark } = require('../helpers/userHelper');
-const { User, CartItem, Order, VariantSize, OrderItem } = require('../models');
+const { User, CartItem, Order, VariantSize, OrderItem, ProductVariant, Favorite, Address } = require('../models');
 const { validateExistence } = require('../utils/validates');
 
 exports.getAllUsers = async (req, res) => {
@@ -73,118 +73,167 @@ exports.deleteUser = async (req, res) => {
 exports.getUserFavorites = async (req, res) => {
     try {
         const userId = await validateExistence(User, req.params.userId);
-        const user = await User.findById(userId);
-        const filter = { _id: { $in: user.favorites } };
+        const variantIds = (await Favorite.find({ user: userId })
+            .select('variant -_id'))
+            .map(doc => doc.variant);
+        const filter = { _id: { $in: variantIds } };
         const enrichedVariants = await getEnrichedVariants(filter);
 
-        res.json(enrichedVariants);
+        res.json({ data: enrichedVariants });
     } catch (err) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        resError(res, err, {
+            defaultCode: "FAV.FETCH",
+            defaultMessage: "Lấy dữ liệu yêu thích thất bại"
+        })
     }
 };
 
 exports.addFavorite = async (req, res) => {
     try {
-        const userId = validateExistence(User, req.params.userId);
-        const variantId = req.body.variantId;
-        const user = await User.findById(userId);
+        const userId = await validateExistence(User, req.params.userId);
+        const variantId = await validateExistence(ProductVariant, req.body.variantId);
 
-        if (!user.favorites.includes(variantId)) {
-            user.favorites.push(variantId);
-            await user.save();
-        }
-        res.json({ message: 'Đã thêm sản phẩm vào yêu thích', favorite: variantId });
+        await Favorite.create({
+            user: userId,
+            variant: variantId,
+        });
+
+        res.json({ message: 'Đã thêm sản phẩm vào yêu thích' });
     } catch (err) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        resError(res, err, {
+            defaultCode: "FAV.ADD",
+            defaultMessage: "Thêm sản phẩm vào yêu thích thất bại"
+        })
     }
 };
 
 exports.removeFavorite = async (req, res) => {
     try {
-        const userId = validateExistence(User, req.params.userId);
-        const variantId = req.params.variantId;
-        const user = await User.findById(userId);
+        const userId = await validateExistence(User, req.params.userId);
+        const variantId = await validateExistence(ProductVariant, req.params.variantId);
 
-        user.favorites = user.favorites.filter(id => id.toString() !== variantId);
-        await user.save();
+        await Favorite.findOneAndDelete({
+            user: userId,
+            variant: variantId,
+        })
+
         res.json({ message: 'Đã xóa sản phẩm khỏi yêu thích' });
     } catch (err) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        resError(res, err, {
+            defaultCode: "FAV.REMOVE",
+            defaultMessage: "Xoá sản phẩm yêu thích thất bại"
+        })
     }
 };
 
 exports.getUserAddresses = async (req, res) => {
     try {
         const userId = await validateExistence(User, req.params.userId);
-        const user = await User.findById(userId);
 
-        res.json(user.shippingAddresses);
+        const addresses = await Address.find({ user: userId })
+            .sort({ isDefault: -1 })
+            .select("-__v")
+            .lean();
+
+        res.json({ data: addresses });
     } catch (err) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        resError(res, err, {
+            defaultCode: "ADDR.FETCH_ALL",
+            defaultMessage: "Lấy dữ liệu thất bại"
+        })
     }
 };
 
 exports.addShippingAddress = async (req, res) => {
     try {
         const userId = await validateExistence(User, req.params.userId);
-        const address = req.body;
+        const { fullName, phone, street, ward, province, isDefault } = req.body;
 
-        const user = await User.findById(userId);
-        updateDefaultMark(user, address.isDefault);
+        if (isDefault)
+            await Address.updateMany({ user: userId, isDefault: true }, { isDefault: false });
 
-        user.shippingAddresses.push(address);
-        await user.save();
+        await Address.create({
+            user: userId,
+            fullName,
+            phone,
+            street,
+            ward,
+            province,
+            isDefault
+        });
 
-        res.json({ message: 'Đã thêm mới địa chỉ giao hàng', data: address });
+        const addresses = await Address.find({ user: userId })
+            .sort({ isDefault: -1 })
+            .select("-__v")
+            .lean();
+
+        res.json({ message: 'Đã thêm mới địa chỉ giao hàng', data: addresses });
     } catch (err) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        resError(res, err, {
+            defaultCode: "ADDR.ADD",
+            defaultMessage: "Thêm địa chỉ mới thất bại"
+        })
     }
 };
 
 exports.updateShippingAddress = async (req, res) => {
     try {
         const userId = await validateExistence(User, req.params.userId);
-        const addressId = req.params.addressId
-        const { fullName, phone, streetDetails, ward, district, city, isDefault } = req.body;
-        const user = await User.findById(userId);
+        const addressId = await validateExistence(Address, req.params.addressId)
+        const { fullName, phone, street, ward, province, isDefault } = req.body;
 
-        const address = user.shippingAddresses.find(a => a._id.toString() === addressId);
-        if (!address) return res.status(404).json({ message: 'Địa chỉ không tồn tại' });
-        address.fullName = fullName;
-        address.phone = phone;
-        address.streetDetails = streetDetails;
-        address.ward = ward;
-        address.district = district;
-        address.city = city;
-        updateDefaultMark(user, isDefault);
-        address.isDefault = isDefault;
+        if (isDefault) {
+            await Address.updateMany(
+                { user: userId, isDefault: true, _id: { $ne: addressId } },
+                { isDefault: false }
+            );
+        }
 
-        await user.save();
-        res.json({ message: 'Đã cập nhật địa chỉ giao hàng', address });
+        await Address.findOneAndUpdate({
+            _id: addressId, user: userId
+        }, {
+            fullName,
+            phone,
+            street,
+            ward,
+            province,
+            isDefault
+        }, { new: true });
+
+        const addresses = await Address.find({ user: userId })
+            .sort({ isDefault: -1 })
+            .select("-__v")
+            .lean();
+
+        res.json({ message: 'Đã cập nhật địa chỉ giao hàng', data: addresses });
     } catch (err) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        resError(res, err, {
+            defaultCode: "ADDR.UPDATE",
+            defaultMessage: "Cập nhật địa chỉ thất bại"
+        })
     }
 };
 
 exports.removeShippingAddress = async (req, res) => {
     try {
-        const userId = validateExistence(User, req.params.userId);
-        const addressId = req.params.addressId;
-        const user = await User.findById(userId);
+        const userId = await validateExistence(User, req.params.userId);
+        const addressId = await validateExistence(Address, req.params.addressId);
 
-        user.shippingAddresses = user.shippingAddresses
-            .filter(address => address._id.toString() !== addressId);
-        await user.save();
-        res.json({ message: 'Đã xóa địa chỉ giao hàng' });
+        const address = await Address.findOne({ _id: addressId, user: userId });
+        if (!address) throwError('ADDR.REMOVE', 'Địa chỉ không thuộc người dùng này', 403);
+        await address.deleteOne();
+
+        const addresses = await Address.find({ user: userId })
+            .sort({ isDefault: -1 })
+            .select("-__v")
+            .lean();
+
+        res.json({ message: 'Đã xóa địa chỉ giao hàng', data: addresses });
     } catch (err) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        resError(res, err, {
+            defaultCode: "ADDR.REMOVE",
+            defaultMessage: "Xoá địa chỉ thất bại"
+        })
     }
 };
 
@@ -196,7 +245,7 @@ exports.getUserCart = async (req, res) => {
         res.json({ data: enrichedItems });
     } catch (err) {
         resError(res, err, {
-            defaultCode: "CART.FETCH_CART",
+            defaultCode: "CART.FETCH_ALL",
             defaultMessage: "Lấy giỏ hàng thất bại"
         })
     }
@@ -221,7 +270,7 @@ exports.addOrUpdateCartItem = async (req, res) => {
         res.status(200).json({ data: updatedItem });
     } catch (err) {
         resError(res, err, {
-            defaultCode: "CART.CREATE_ITEM",
+            defaultCode: "CART.ADD_ITEM",
             defaultMessage: "Thêm sản phẩm thất bại"
         })
     }
@@ -257,13 +306,13 @@ exports.removeCartItem = async (req, res) => {
 
         const deletedItem = await CartItem.findOneAndDelete({ variantSize: sizeId, user: userId });
         if (!deletedItem) {
-            throwError('CART.DELETE_ITEM', 'Sản phẩm không tồn tại trong giỏ hàng', 404);
+            throwError('CART.REMOVE_ITEM', 'Sản phẩm không tồn tại trong giỏ hàng', 404);
         }
 
         res.json({ data: deletedItem });
     } catch (err) {
         resError(res, err, {
-            defaultCode: "CART.DELETE_ITEM",
+            defaultCode: "CART.REMOVE_ITEM",
             defaultMessage: "Xoá sản phẩm thất bại"
         })
     }

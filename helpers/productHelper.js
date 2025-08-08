@@ -1,5 +1,5 @@
 const { ProductVariant, VariantSize, Review, CartItem } = require("../models");
-const { getCampaignForProductCached, getCampaignIdForProduct } = require("./campaignHelper");
+const { getCampaignForProductCached } = require("./campaignHelper");
 
 const getFinalPrice = (basePrice, campaign) => {
     if (!campaign) return basePrice;
@@ -129,6 +129,7 @@ const getEnrichedCartItems = async (filter) => {
                 basePrice: productVariant.basePrice,
                 finalPrice,
                 imageUrl: productVariant.images?.[0] || null,
+                active: variantSize.active,
                 quantity
             };
         })

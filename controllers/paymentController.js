@@ -2,7 +2,6 @@
 const { payosInstance, CHECKSUM_KEY, zalopayConfig, zalopayInstance } = require("../config");
 const moment = require("moment");
 const Crypto = require("crypto");
-const { log } = require('console');
 
 
 // exports.getAllMethods = async (req, res) => {

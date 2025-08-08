@@ -1,45 +1,60 @@
-const { User, Otp } = require('../models');
+const { User, Otp, Address } = require('../models');
 const { createJWT } = require('../utils/jwt');
 const bcrypt = require('bcrypt');
 const sendOtpMail = require('../services/nodemailer/nodemailerService');
+const { resError, throwError } = require('../helpers/errorHelper');
 
 exports.login = async (req, res) => {
     try {
-        const { emailOrUsername, password } = req.body;
+        const input = String(req.body.emailOrUsername).trim().toLowerCase();
+        const password = req.body.password;
         const user = await User.findOne({
-            $or: [{ email: emailOrUsername }, { username: emailOrUsername }]
+            $or: [{ email: input }, { username: input }]
         }).select('+password');
-        if (!user) {
-            return res.status(404).json({ message: 'Sai email / tên đăng nhập hoặc mật khẩu' });
-        }
+
+        if (!user)
+            throwError("AUTH.LOGIN", "Sai email / tên đăng nhập hoặc mật khẩu", 404);
+
         const isMatch = await user.comparePassword(password);
-        if (!isMatch) {
-            return res.status(404).json({ message: 'Sai email / tên đăng nhập hoặc mật khẩu' });
-        };
+        if (!isMatch)
+            throwError("AUTH.LOGIN", "Sai email / tên đăng nhập hoặc mật khẩu", 404);
+
+        const enrichedUser = user.toObject();
+        delete enrichedUser.password;
+        enrichedUser.addresses = await Address.find({ user: user._id }).lean();
+
         const token = createJWT(user._id, 'login', '2h');
         user.password = undefined;
-        res.status(200).json({ token, user });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(200).json({ token, user: enrichedUser });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "AUTH.LOG_IN",
+            defaultMessage: "Đăng nhập thất bại"
+        })
     }
 };
 
 exports.signup = async (req, res) => {
     try {
-        const { username, password, email, fullName, role } = req.body;
+        const { password, fullName, role } = req.body;
+        const username = String(req.body.username).trim().toLowerCase();
+        const email = String(req.body.email).trim().toLowerCase();
 
         const existUser = await User.findOne({ $or: [{ username }, { email }] });
-        if (existUser) {
-            return res.status(400).json({ message: 'Tên đăng nhập hoặc email đã tồn tại' });
-        }
+        if (existUser)
+            throwError("AUTH.SIGNUP", "Tên đăng nhập hoặc email đã tồn tại", 400);
 
         const user = new User({ username, password, email, fullName, role });
         const savedUser = await user.save();
+
         const userData = savedUser.toObject();
         delete userData.password;
-        res.status(201).json(userData);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(201).json({ data: userData });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "AUTH.SIGN_UP",
+            defaultMessage: "Đăng ký thất bại"
+        })
     }
 };
 
@@ -62,6 +77,10 @@ exports.changePassword = async (req, res) => {
         await user.save();
         res.json({ message: 'Đổi mật khẩu thành công' });
     } catch (err) {
+        // resError(res, err, {
+        //     defaultCode: "AUTH.CHG_PWD",
+        //     defaultMessage: "Đổi mật khẩu thất bại"
+        // })
         res.status(500).json({ message: err.message });
     }
 };
