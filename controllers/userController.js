@@ -438,8 +438,8 @@ exports.updateProfile = async (req, res) => {
             user: updated
         });
     } catch (err) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        const status = err.statusCode || 500;
+        res.status(status).json({ message: err.message });
     }
 };
 
@@ -448,10 +448,7 @@ exports.getOrdersById = async (req, res) => {
         const user = await validateExistence(User, req.params.userId);
         const orders = await Order.find({ user })
             .populate('user', 'username fullName email')
-            .populate({
-                path: 'transaction',
-                select: '-metadata',
-            })
+            .populate('transaction', 'amount paymentMethod providerTransactionId status')
             .sort({ createdAt: -1 })
             .lean();
 
@@ -463,10 +460,12 @@ exports.getOrdersById = async (req, res) => {
             };
         }));
 
-        res.json(enrichedOrders);
+        res.json({ data: enrichedOrders });
     } catch (err) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+        resError(res, err, {
+            defaultCode: "ORD.FETCH_BY_USR",
+            defaultMessage: "Lấy danh sách đơn hàng thất bại"
+        })
     }
 };
 // verify password
