@@ -22,7 +22,6 @@ const userSchema = new mongoose.Schema({
         default: 'https://example.com/default-avatar.png'
         // default: 'https://res.cloudinary.com/trendsetter-app/image/upload/v1752860727/default-avatar.webp'
     },
-    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ProductVariant' }],
 }, { timestamps: true, optimisticConcurrency: true });
 
 

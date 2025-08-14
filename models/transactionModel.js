@@ -6,6 +6,7 @@ const transactionSchema = new mongoose.Schema({
     amount: { type: Number, required: true },
     paymentMethod: { type: String, required: true },
     providerTransactionId: { type: String, required: true, unique: true },
+    providerPayLink: { type: String },
     status: { type: String, enum: ['pending', 'completed', 'cancelled', 'refunded'], default: 'pending' },
 }, { timestamps: true, optimisticConcurrency: true });
 
