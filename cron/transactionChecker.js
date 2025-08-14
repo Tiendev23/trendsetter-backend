@@ -1,38 +1,28 @@
 const cron = require('node-cron');
 const Transaction = require('../models/transactionModel');
-const { payOS } = require('../config');
-const zalopayService = require('../services/zalopay.service');
+const { withTransaction } = require('../helpers/dbTransaction');
+const { cancelOrder } = require('../services/order.service');
 
 cron.schedule('*/5 * * * *', async () => {
     // console.log('[CRON] Kiểm tra giao dịch chưa thanh toán...');
-    const thirtyMinutesAgo = new Date(Date.now() - 20 * 60 * 1000);
-    const pendingTransactions = await Transaction.find({
+    const FIFTEEN_MINS = new Date(Date.now() - 15 * 60 * 1000);
+    const pendingTrans = await Transaction.find({
         status: 'pending',
-        createdAt: { $lt: thirtyMinutesAgo }
+        createdAt: { $lt: FIFTEEN_MINS },
+        paymentMethod: { $ne: 'cod' }
     });
 
-    for (const tx of pendingTransactions) {
+    for (const trx of pendingTrans) {
         try {
-            if (tx.paymentMethod === 'payos') {
-                const paymentLink = await payOS.getPaymentLinkInformation(tx.providerTransactionId);
-
-                if (paymentLink.status === 'EXPIRED' || paymentLink.status === 'CANCELED') {
-                    tx.status = 'cancelled';
-                    await tx.save();
-                    console.log(`[CRON] Giao dịch ${tx._id} đã bị hủy.`);
-                }
-            }
-            else if (tx.paymentMethod === 'zalopay') {
-                const response = await zalopayService.queryOrderStatus(tx.providerTransactionId);
-
-                if (response.return_code == 2 || response.return_code == 3) {
-                    tx.status = 'cancelled';
-                    await tx.save();
-                    console.log(`[CRON] Giao dịch ${tx._id} đã bị hủy.`);
-                }
-            }
+            await withTransaction(async session => {
+                await cancelOrder({
+                    session,
+                    providerTxId: trx.providerTransactionId,
+                });
+            });
+            console.log(`[CRON] Giao dịch ${trx.paymentMethod} ${trx._id} đã bị hủy.`);
         } catch (err) {
-            console.error(`[CRON] Lỗi khi kiểm tra giao dịch ${tx._id}:`, err.message);
+            console.error(`[CRON] Lỗi khi kiểm tra giao dịch ${trx._id}:`, err.message);
         }
     }
 });

@@ -35,6 +35,7 @@ exports.createTransaction = async (req, res) => {
                 app_user: userId,
                 app_trans_id,
                 app_time,
+                expire_duration_seconds: 900, // Thời gian hết hạn mặc định để dễ quản lý
                 amount,
                 description: "TRENDSETTER",
                 bank_code: "zalopayapp",
@@ -52,10 +53,13 @@ exports.createTransaction = async (req, res) => {
                 session, userId, amount, shippingFee, items,
                 shippingAddress, recipientName, recipientPhone,
                 paymentMethod: req.params.provider,
-                providerTxId: app_trans_id
+                providerTxId: app_trans_id,
+                payLink: response.data.order_url,
             });
-
-            return { ...response.data, transId: app_trans_id };
+            return {
+                checkoutUrl: response.data.order_url,
+                providerTrxId: app_trans_id,
+            };
         });
         res.json({ data: payload });
     } catch (err) {
