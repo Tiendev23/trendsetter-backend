@@ -47,10 +47,14 @@ exports.createTransaction = async (req, res) => {
                 session, userId, amount, shippingFee, items,
                 shippingAddress, recipientName, recipientPhone,
                 paymentMethod: req.params.provider,
-                providerTxId: response.orderCode.toString()
+                providerTxId: response.orderCode.toString(),
+                payLink: response.checkoutUrl,
             });
 
-            return response;
+            return {
+                checkoutUrl: response.checkoutUrl,
+                providerTrxId: response.orderCode.toString(),
+            };
         });
         res.json({ data: payload });
     } catch (err) {

@@ -43,6 +43,7 @@ exports.createOrderFromTransaction = async (transactionData) => {
             return await OrderItem.create({
                 order: order._id,
                 campaign: item.campaign,
+                product: item.product,
                 variant: item.variant,
                 size: sizeId,
                 name: item.name,
@@ -57,7 +58,7 @@ exports.createOrderFromTransaction = async (transactionData) => {
 };
 
 async function createOrder({
-    userId, amount, paymentMethod, providerTxId,
+    userId, amount, paymentMethod, providerTxId, payLink,
     shippingAddress, recipientName, recipientPhone,
     items, shippingFee, session
 }) {
@@ -65,7 +66,8 @@ async function createOrder({
         user: userId,
         amount,
         paymentMethod: paymentMethod,
-        providerTransactionId: providerTxId
+        providerTransactionId: providerTxId,
+        providerPayLink: payLink,
     }], { session });
 
     const [order] = await Order.create([{
@@ -89,18 +91,19 @@ async function createOrder({
     for (const item of items) {
         const sizeId = await validateExistence(VariantSize, item.size._id);
 
-        await CartItem.deleteOne(
-            { user: userId, variantSize: item.size._id },
-            { session }
-        );
+        // await CartItem.deleteOne(
+        //     { user: userId, variantSize: item.size._id },
+        //     { session }
+        // );
 
         const size = await VariantSize.findById(item.size._id).session(session);
-        if (size.stock < item.quantity) throwError("ORD.CRT_ITEM", `${item.name} ${item.size.size} đã hết hàng`, 400);
+        if (size.stock < item.quantity || !(size.active)) throwError("ORD.CRT_ITEM", `${item.name} ${item.size.size} đã hết hàng`, 400);
 
         await OrderItem.create(
             [{
                 order: order._id,
                 campaign: item.campaign,
+                product: item.product,
                 variant: item.variant,
                 size: sizeId,
                 name: item.name,
@@ -121,6 +124,7 @@ async function updateOrderStatus({ session, providerTxId }) {
     const transaction = await Transaction.findOneAndUpdate(
         { providerTransactionId: providerTxId, status: 'pending' },
         {
+            $unset: { providerPayLink: "" },
             $set: { status: 'completed' },
             $inc: { __v: 1 }
         },
@@ -148,6 +152,7 @@ async function cancelOrder({ session, providerTxId }) {
     const transaction = await Transaction.findOneAndUpdate(
         { providerTransactionId: providerTxId },
         {
+            $unset: { providerPayLink: "" },
             $set: { status: 'cancelled' },
             $inc: { __v: 1 }
         },
@@ -157,7 +162,10 @@ async function cancelOrder({ session, providerTxId }) {
 
     return await Order.findByIdAndUpdate(
         transaction.order,
-        { $set: { status: 'cancelled' }, $inc: { __v: 1 } },
+        {
+            $set: { status: 'cancelled' },
+            $inc: { __v: 1 }
+        },
         { new: true, session }
     ).populate('transaction');
 }

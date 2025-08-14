@@ -30,6 +30,6 @@ router.delete('/:userId/cart/:sizeId', userController.removeCartItem);
 router.delete('/:userId/cart', userController.clearCart);
 router.post('/:userId/cart/sync', userController.syncCart);
 
-router.get('/:userId/orders', userController.getOrdersById);
+router.get('/:userId/orders', userController.getUserOrders);
 
 module.exports = router;

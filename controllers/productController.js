@@ -1,4 +1,4 @@
-const { Product, ProductVariant, VariantSize, Category, Brand, Review } = require('../models');
+const Model = require('../models');
 const { getCampaignForProductCached } = require('../helpers/campaignHelper');
 const { uploadToCloudinary, deleteCloudinaryImage } = require('../services/cloudinaryService');
 const { getFinalPrice, setVariantsActiveByProduct, enrichVariants, enrichRating } = require('../helpers/productHelper');
@@ -20,7 +20,7 @@ exports.getAllProducts = async (req, res) => {
         if (req.query.category) filter.category = req.query.category;
         if (req.query.brand) filter.brand = req.query.brand;
 
-        const products = await Product.find(filter)
+        const products = await Model.Product.find(filter)
             .populate('category', 'name')
             .populate('brand', 'name')
             .lean();
@@ -56,8 +56,8 @@ exports.getAllProducts = async (req, res) => {
 // };
 exports.getProductById = async (req, res) => {
     try {
-        const productId = await validateExistence(Product, req.params.productId);
-        const product = await Product.findById(productId)
+        const productId = await validateExistence(Model.Product, req.params.productId);
+        const product = await Model.Product.findById(productId)
             .populate('category', 'name')
             .populate('brand', 'name')
             .lean();
@@ -79,29 +79,28 @@ exports.getProductById = async (req, res) => {
 exports.getReviewsById = async (req, res) => {
     try {
         const productId = req.params.productId;
-        await validateExistence(Product, productId);
+        await validateExistence(Model.Product, productId);
 
-        const reviews = await Review.find({ product: productId })
+        const reviews = await Model.Review.find({ product: productId })
             .populate('user', 'username fullName avatar')
             .populate({
                 path: 'orderItem',
                 select: 'size color',
                 populate: {
                     path: 'size',
-                    select: 'size -_id'
+                    select: 'size'
                 }
             })
             .sort({ createdAt: -1 }).lean();
-        const transformedReviews = reviews.map((rv) => ({
-            ...rv,
-            orderItem: {
-                ...rv.orderItem,
-                size: rv.orderItem?.size?.size || null
-            }
-        }));
+        // const transformedReviews = reviews.map((rv) => ({
+        //     ...rv,
+        //     orderItem: {
+        //         ...rv.orderItem,
+        //         size: rv.orderItem?.size?.size || null
+        //     }
+        // }));
 
-
-        res.json({ data: transformedReviews });
+        res.json({ data: reviews });
     } catch (err) {
         resError(res, err, {
             defaultCode: "PROD.FETCH_REVS",
@@ -174,11 +173,11 @@ exports.createProduct = async (req, res) => {
 
         if (!category || !brand || !name || !variants)
             throwError("Bad Request", "Thiếu thông tin sản phẩm", 400);
-        await validateExistence(Category, category);
-        await validateExistence(Brand, brand);
+        await validateExistence(Model.Category, category);
+        await validateExistence(Model.Brand, brand);
 
         const parsedVariants = JSON.parse(variants); // parse từ chuỗi JSON
-        const product = await Product.create({
+        const product = await Model.Product.create({
             category, brand, name, gender, description
         });
         const objProduct = product.toObject();
@@ -190,7 +189,7 @@ exports.createProduct = async (req, res) => {
             const images = await Promise.all(
                 imageFiles.map(file => uploadToCloudinary(file, 'Products'))
             );
-            const variant = await ProductVariant.create({
+            const variant = await Model.ProductVariant.create({
                 product: product._id,
                 color,
                 basePrice,
@@ -201,7 +200,7 @@ exports.createProduct = async (req, res) => {
             const inventoryDocs = [];
             for (const obj of inventories) {
                 const { size, stock } = obj;
-                const inventory = await VariantSize.create({
+                const inventory = await Model.VariantSize.create({
                     productVariant: variant._id,
                     size,
                     stock
@@ -299,8 +298,8 @@ exports.updateProduct = async (req, res) => {
         const productId = req.params.productId;
         const { category, brand, name, gender, description, active } = req.body;
 
-        await validateExistence(Product, productId);
-        const product = await Product.findById(productId);
+        await validateExistence(Model.Product, productId);
+        const product = await Model.Product.findById(productId);
 
         if (category) product.category = category;
         if (brand) product.brand = brand;
@@ -326,7 +325,7 @@ exports.updateProduct = async (req, res) => {
 
 exports.deleteProduct = async (req, res) => {
     try {
-        const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+        const deletedProduct = await Model.Product.findByIdAndDelete(req.params.id);
 
         await deleteCloudinaryImage(deletedProduct.image);
         await deleteCloudinaryImage(deletedProduct.banner);
@@ -338,6 +337,34 @@ exports.deleteProduct = async (req, res) => {
         resError(res, err, {
             defaultCode: "PROD.DELETE",
             defaultMessage: "Xoá sản phẩm thất bại"
+        });
+    }
+};
+
+exports.createReview = async (req, res) => {
+    try {
+        const user = req.user._id;
+        const product = req.params.productId;
+        const { orderItem, rating, content } = req.body;
+        const imageFiles = req.files?.images || [];
+
+        await validateExistence(Model.Product, product);
+        await validateExistence(Model.OrderItem, orderItem);
+
+        const images = await Promise.all(
+            imageFiles.map(file => uploadToCloudinary(file, 'Reviews'))
+        );
+        const existingReview = await Model.Review.findOne({ user, orderItem });
+        if (existingReview) throwError('PROD.CRT_REVIEW', 'Bạn đã đánh giá sản phẩm này trong đơn hàng này', 409);
+
+        const review = await Model.Review.create({
+            user, product, orderItem, rating: Number.parseInt(rating), content, images
+        });
+        res.status(201).json({ message: 'Tạo đánh giá thành công', data: review });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "PROD.CRT_REVIEW",
+            defaultMessage: "Tạo đánh giá sản phẩm thất bại"
         });
     }
 };
