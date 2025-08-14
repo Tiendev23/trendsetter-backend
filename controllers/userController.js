@@ -2,13 +2,13 @@
 const { resError, throwError } = require('../helpers/errorHelper');
 const { getEnrichedVariants, getEnrichedCartItems } = require('../helpers/productHelper');
 const { applyProfileUpdates, updateDefaultMark } = require('../helpers/userHelper');
-const { User, CartItem, Order, VariantSize, OrderItem, ProductVariant, Favorite, Address } = require('../models');
+const Model = require('../models');
 const { validateExistence } = require('../utils/validates');
 
 exports.getAllUsers = async (req, res) => {
     try {
         // const users = await User.find({}, '-password').sort({ createdAt: -1 });
-        const users = await User.find().sort({ createdAt: -1 });
+        const users = await Model.User.find().sort({ createdAt: -1 });
         res.json(users);
     } catch (err) {
         const status = error.statusCode || 500;
@@ -21,12 +21,12 @@ exports.createUser = async (req, res) => {
         const { username, password, email, fullName, role } = req.body;
 
         // Kiểm tra username hoặc email tồn tại
-        const existUser = await User.findOne({ $or: [{ username }, { email }] });
+        const existUser = await Model.User.findOne({ $or: [{ username }, { email }] });
         if (existUser) {
             return res.status(400).json({ message: 'Tên đăng nhập hoặc email đã tồn tại' });
         }
 
-        const user = new User({ username, password, email, fullName, role });
+        const user = new Model.User({ username, password, email, fullName, role });
         const savedUser = await user.save();
         const userData = savedUser.toObject();
         delete userData.password;
@@ -44,7 +44,7 @@ exports.updateUser = async (req, res) => {
         const updateData = { username, email, fullName, role };
         if (password) updateData.password = password; // Mật khẩu sẽ được hash bởi pre save
 
-        const user = await User.findById(req.params.id);
+        const user = await Model.User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: 'User không tồn tại' });
 
         Object.assign(user, updateData);
@@ -61,7 +61,7 @@ exports.updateUser = async (req, res) => {
 
 exports.deleteUser = async (req, res) => {
     try {
-        const deletedUser = await User.findByIdAndDelete(req.params.id);
+        const deletedUser = await Model.User.findByIdAndDelete(req.params.id);
         if (!deletedUser) return res.status(404).json({ message: 'User không tồn tại' });
         res.json({ message: 'User đã được xóa' });
     } catch (err) {
@@ -72,8 +72,8 @@ exports.deleteUser = async (req, res) => {
 
 exports.getUserFavorites = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
-        const variantIds = (await Favorite.find({ user: userId })
+        const userId = await validateExistence(Model.User, req.params.userId);
+        const variantIds = (await Model.Favorite.find({ user: userId })
             .select('variant -_id'))
             .map(doc => doc.variant);
         const filter = { _id: { $in: variantIds } };
@@ -90,14 +90,15 @@ exports.getUserFavorites = async (req, res) => {
 
 exports.addFavorite = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
-        const variantId = await validateExistence(ProductVariant, req.body.variantId);
-
-        await Favorite.create({
-            user: userId,
-            variant: variantId,
-        });
-
+        const userId = await validateExistence(Model.User, req.params.userId);
+        const variantId = await validateExistence(Model.ProductVariant, req.body.variantId);
+        const existed = await Model.Favorite.findOne({ user: userId, variant: variantId }).lean();
+        if (!existed) {
+            await Model.Favorite.create({
+                user: userId,
+                variant: variantId,
+            });
+        }
         res.json({ message: 'Đã thêm sản phẩm vào yêu thích' });
     } catch (err) {
         resError(res, err, {
@@ -109,10 +110,10 @@ exports.addFavorite = async (req, res) => {
 
 exports.removeFavorite = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
-        const variantId = await validateExistence(ProductVariant, req.params.variantId);
+        const userId = await validateExistence(Model.User, req.params.userId);
+        const variantId = await validateExistence(Model.ProductVariant, req.params.variantId);
 
-        await Favorite.findOneAndDelete({
+        await Model.Favorite.findOneAndDelete({
             user: userId,
             variant: variantId,
         })
@@ -128,9 +129,9 @@ exports.removeFavorite = async (req, res) => {
 
 exports.getUserAddresses = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
+        const userId = await validateExistence(Model.User, req.params.userId);
 
-        const addresses = await Address.find({ user: userId })
+        const addresses = await Model.Address.find({ user: userId })
             .sort({ isDefault: -1 })
             .select("-__v")
             .lean();
@@ -146,13 +147,13 @@ exports.getUserAddresses = async (req, res) => {
 
 exports.addShippingAddress = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
+        const userId = await validateExistence(Model.User, req.params.userId);
         const { fullName, phone, street, ward, province, isDefault } = req.body;
 
         if (isDefault)
-            await Address.updateMany({ user: userId, isDefault: true }, { isDefault: false });
+            await Model.Address.updateMany({ user: userId, isDefault: true }, { isDefault: false });
 
-        await Address.create({
+        await Model.Address.create({
             user: userId,
             fullName,
             phone,
@@ -162,7 +163,7 @@ exports.addShippingAddress = async (req, res) => {
             isDefault
         });
 
-        const addresses = await Address.find({ user: userId })
+        const addresses = await Model.Address.find({ user: userId })
             .sort({ isDefault: -1 })
             .select("-__v")
             .lean();
@@ -178,18 +179,18 @@ exports.addShippingAddress = async (req, res) => {
 
 exports.updateShippingAddress = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
-        const addressId = await validateExistence(Address, req.params.addressId)
+        const userId = await validateExistence(Model.User, req.params.userId);
+        const addressId = await validateExistence(Model.Address, req.params.addressId)
         const { fullName, phone, street, ward, province, isDefault } = req.body;
 
         if (isDefault) {
-            await Address.updateMany(
+            await Model.Address.updateMany(
                 { user: userId, isDefault: true, _id: { $ne: addressId } },
                 { isDefault: false }
             );
         }
 
-        await Address.findOneAndUpdate({
+        await Model.Address.findOneAndUpdate({
             _id: addressId, user: userId
         }, {
             fullName,
@@ -200,7 +201,7 @@ exports.updateShippingAddress = async (req, res) => {
             isDefault
         }, { new: true });
 
-        const addresses = await Address.find({ user: userId })
+        const addresses = await Model.Address.find({ user: userId })
             .sort({ isDefault: -1 })
             .select("-__v")
             .lean();
@@ -216,14 +217,14 @@ exports.updateShippingAddress = async (req, res) => {
 
 exports.removeShippingAddress = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
-        const addressId = await validateExistence(Address, req.params.addressId);
+        const userId = await validateExistence(Model.User, req.params.userId);
+        const addressId = await validateExistence(Model.Address, req.params.addressId);
 
-        const address = await Address.findOne({ _id: addressId, user: userId });
+        const address = await Model.Address.findOne({ _id: addressId, user: userId });
         if (!address) throwError('ADDR.REMOVE', 'Địa chỉ không thuộc người dùng này', 403);
         await address.deleteOne();
 
-        const addresses = await Address.find({ user: userId })
+        const addresses = await Model.Address.find({ user: userId })
             .sort({ isDefault: -1 })
             .select("-__v")
             .lean();
@@ -239,8 +240,8 @@ exports.removeShippingAddress = async (req, res) => {
 
 exports.getUserCart = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
-        const items = await CartItem.find({ user: userId });
+        const userId = await validateExistence(Model.User, req.params.userId);
+        const items = await Model.CartItem.find({ user: userId });
         const enrichedItems = await getEnrichedCartItems({ _id: { $in: items.map(item => item._id) } });
         res.json({ data: enrichedItems });
     } catch (err) {
@@ -253,11 +254,11 @@ exports.getUserCart = async (req, res) => {
 
 exports.addOrUpdateCartItem = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
-        const sizeId = await validateExistence(VariantSize, req.body.sizeId);
+        const userId = await validateExistence(Model.User, req.params.userId);
+        const sizeId = await validateExistence(Model.VariantSize, req.body.sizeId);
         const quantity = req.body.quantity;
 
-        const updatedItem = await CartItem.findOneAndUpdate(
+        const updatedItem = await Model.CartItem.findOneAndUpdate(
             { user: userId, variantSize: sizeId },
             { $inc: { quantity } },
             {
@@ -278,10 +279,10 @@ exports.addOrUpdateCartItem = async (req, res) => {
 
 exports.updateCartItem = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
-        const sizeId = await validateExistence(VariantSize, req.params.sizeId);
+        const userId = await validateExistence(Model.User, req.params.userId);
+        const sizeId = await validateExistence(Model.VariantSize, req.params.sizeId);
 
-        const updatedItem = await CartItem.findOneAndUpdate(
+        const updatedItem = await Model.CartItem.findOneAndUpdate(
             { user: userId, variantSize: sizeId },
             { quantity: req.body.quantity },
             { new: true }
@@ -301,10 +302,10 @@ exports.updateCartItem = async (req, res) => {
 
 exports.removeCartItem = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
-        const sizeId = await validateExistence(VariantSize, req.params.sizeId);
+        const userId = await validateExistence(Model.User, req.params.userId);
+        const sizeId = await validateExistence(Model.VariantSize, req.params.sizeId);
 
-        const deletedItem = await CartItem.findOneAndDelete({ variantSize: sizeId, user: userId });
+        const deletedItem = await Model.CartItem.findOneAndDelete({ variantSize: sizeId, user: userId });
         if (!deletedItem) {
             throwError('CART.REMOVE_ITEM', 'Sản phẩm không tồn tại trong giỏ hàng', 404);
         }
@@ -320,20 +321,20 @@ exports.removeCartItem = async (req, res) => {
 
 exports.removeManyCartItem = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
+        const userId = await validateExistence(Model.User, req.params.userId);
 
         const sizeIds = req.body;
 
         if (!Array.isArray(sizeIds) || sizeIds.length === 0)
             throwError("CART.REMOVE_MANY", "Danh sách sizeIds không hợp lệ", 400);
-        await Promise.all(sizeIds.map(id => validateExistence(VariantSize, id)));
+        await Promise.all(sizeIds.map(id => validateExistence(Model.VariantSize, id)));
 
-        await CartItem.deleteMany({
+        await Model.CartItem.deleteMany({
             user: userId,
             variantSize: { $in: sizeIds }
         });
 
-        const updatedCart = await CartItem.find({ user: userId });
+        const updatedCart = await Model.CartItem.find({ user: userId });
         const enrichedItems = await getEnrichedCartItems({ _id: { $in: updatedCart.map(item => item._id) } });
 
         res.json({ data: enrichedItems });
@@ -349,10 +350,10 @@ exports.removeManyCartItem = async (req, res) => {
 
 exports.clearCart = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
+        const userId = await validateExistence(Model.User, req.params.userId);
 
-        await CartItem.deleteMany({ user: userId });
-        const updatedCart = await CartItem.find({ user: userId });
+        await Model.CartItem.deleteMany({ user: userId });
+        const updatedCart = await Model.CartItem.find({ user: userId });
         const enrichedItems = await getEnrichedCartItems({ _id: { $in: updatedCart.map(item => item._id) } });
 
         res.json({ data: enrichedItems });
@@ -366,13 +367,13 @@ exports.clearCart = async (req, res) => {
 
 exports.syncCart = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
+        const userId = await validateExistence(Model.User, req.params.userId);
         const incomingItems = req.body; // [{ sizeId, quantity }]
 
         // Validate tất cả sizeId một lần
         const sizeIds = incomingItems.map(item => item.sizeId);
 
-        const validSizes = await VariantSize.find({ _id: { $in: sizeIds } }).select('_id');
+        const validSizes = await Model.VariantSize.find({ _id: { $in: sizeIds } }).select('_id');
         const validSizeSet = new Set(validSizes.map(s => s._id.toString()));
 
         // Lọc ra các item hợp lệ
@@ -385,7 +386,7 @@ exports.syncCart = async (req, res) => {
         });
 
         // Lấy cart hiện tại
-        const existingItems = await CartItem.find({ user: userId });
+        const existingItems = await Model.CartItem.find({ user: userId });
 
         // Merge logic
         const mergedMap = new Map();
@@ -404,7 +405,7 @@ exports.syncCart = async (req, res) => {
         });
 
         // Xoá toàn bộ cart cũ và ghi lại
-        await CartItem.deleteMany({ user: userId });
+        await Model.CartItem.deleteMany({ user: userId });
 
         const mergedItems = Array.from(mergedMap.entries()).map(([sizeId, quantity]) => ({
             user: userId,
@@ -412,9 +413,9 @@ exports.syncCart = async (req, res) => {
             quantity
         }));
 
-        await CartItem.insertMany(mergedItems);
+        await Model.CartItem.insertMany(mergedItems);
 
-        const updatedCart = await CartItem.find({ user: userId });
+        const updatedCart = await Model.CartItem.find({ user: userId });
         const enrichedItems = await getEnrichedCartItems({ _id: { $in: updatedCart.map(item => item._id) } });
         res.status(200).json({ data: enrichedItems });
     } catch (err) {
@@ -427,10 +428,10 @@ exports.syncCart = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        const userId = await validateExistence(User, req.params.userId);
+        const userId = await validateExistence(Model.User, req.params.userId);
         const props = req.body; // props là { username, fullName, gender, birthday }
         const avatar = req.files?.avatar?.[0] || null;
-        const user = await User.findById(userId);
+        const user = await Model.User.findById(userId);
 
         const updated = await applyProfileUpdates(user, props, avatar);
         res.json({
@@ -443,22 +444,45 @@ exports.updateProfile = async (req, res) => {
     }
 };
 
-exports.getOrdersById = async (req, res) => {
+exports.getUserOrders = async (req, res) => {
     try {
-        const user = await validateExistence(User, req.params.userId);
-        const orders = await Order.find({ user })
+        const user = await validateExistence(Model.User, req.params.userId);
+        const orders = await Model.Order.find({ user })
             .populate('user', 'username fullName email')
-            .populate('transaction', 'amount paymentMethod providerTransactionId status')
+            .populate('transaction', '-order -user -__v')
             .sort({ createdAt: -1 })
             .lean();
 
-        const enrichedOrders = await Promise.all(orders.map(async order => {
-            const items = await OrderItem.find({ order: order._id }).lean();
-            return {
-                ...order,
-                items
-            };
-        }));
+        const enrichedOrders = await Promise.all(
+            orders.map(async order => {
+                const orderItems = await Model.OrderItem.find({ order: order._id }).select('-__v').lean();
+                let unreviewedCount = 0;
+                const enrichedItems = await Promise.all(
+                    orderItems.map(async item => {
+                        const size = await Model.VariantSize.findById(item.size).select('size active').lean();
+                        const review = await Model.Review.findOne({ user, orderItem: item._id }).lean();
+                        const isReviewed = Boolean(review);
+                        if (!isReviewed) unreviewedCount += 1;
+                        return {
+                            ...item,
+                            size: {
+                                _id: size._id,
+                                size: size.size
+                            },
+                            active: size.active,
+                            isReviewed
+                        };
+                    })
+                )
+
+                const allReviewed = unreviewedCount === 0;
+                return {
+                    ...order,
+                    items: enrichedItems,
+                    allReviewed
+                };
+            })
+        );
 
         res.json({ data: enrichedOrders });
     } catch (err) {
@@ -472,7 +496,7 @@ exports.getOrdersById = async (req, res) => {
 exports.verifyPassword = async (req, res) => {
     try {
         const { password } = req.body;
-        const user = await User.findById(req.userId);
+        const user = await Model.User.findById(req.userId);
         if (!user) return res.status(404).json({ message: 'Người dùng không tồn tại' });
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -491,7 +515,7 @@ exports.changePassword = async (req, res) => {
         const { newPassword } = req.body;
         const userId = req.user._id;
 
-        const user = await User.findById(userId);
+        const user = await Model.User.findById(userId);
         if (!user) return res.status(404).json({ message: 'Người dùng không tồn tại' });
 
         user.password = newPassword;

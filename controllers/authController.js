@@ -1,4 +1,4 @@
-const { User, Otp, Address } = require('../models');
+const { User, Otp, Address, Favorite } = require('../models');
 const { createJWT } = require('../utils/jwt');
 const bcrypt = require('bcrypt');
 const sendOtpMail = require('../services/nodemailer/nodemailerService');
@@ -21,7 +21,10 @@ exports.login = async (req, res) => {
 
         const enrichedUser = user.toObject();
         delete enrichedUser.password;
+
         enrichedUser.addresses = await Address.find({ user: user._id }).lean();
+        const favorites = await Favorite.find({ user: user._id }).select('-_id variant').lean();
+        enrichedUser.favorites = favorites.map(f => f.variant.toString());
 
         const token = createJWT(user._id, 'login', '2h');
         user.password = undefined;

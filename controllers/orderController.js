@@ -1,11 +1,13 @@
 
-const { throwError } = require('../helpers/errorHelper');
-const { Order, User, Transaction, OrderItem } = require('../models');
+const { withTransaction } = require('../helpers/dbTransaction');
+const { throwError, resError } = require('../helpers/errorHelper');
+const Model = require('../models');
+const { cancelOrder } = require('../services/order.service');
 const validateExistence = require('../utils/validates');
 
 exports.getAllOrders = async (req, res) => {
     try {
-        const orders = await Order.find()
+        const orders = await Model.Order.find()
             .populate('user', 'username fullName email')
             .populate('transaction', '-metadata')
             .sort({ createdAt: -1 });
@@ -45,7 +47,7 @@ exports.getOrderById = async (req, res) => {
 
 exports.getOrderById = async (req, res) => {
     try {
-        const order = await Order.findById(req.params.id)
+        const order = await Model.Order.findById(req.params.id)
             .populate('user', 'username fullName email')
             .populate({
                 path: 'transaction',
@@ -53,7 +55,7 @@ exports.getOrderById = async (req, res) => {
             })
             .lean();
         if (!order) return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
-        const items = await OrderItem.find({ order: order._id }).lean();
+        const items = await Model.OrderItem.find({ order: order._id }).lean();
 
         const enrichedOrder = {
             ...order,
@@ -70,23 +72,23 @@ exports.createOrder = async (req, res) => {
         const { user, shippingAddress, recipientName, recipientPhone, items, transaction, shippingFee } = req.body;
         if (!user || !shippingAddress || !recipientName || !recipientPhone || !items.length || !shippingFee)
             throwError('Bad Request', 'Thiếu thông tin đơn hàng', 400);
-        await validateExistence(User, user);
-        await validateExistence(Transaction, transaction);
+        await validateExistence(Model.User, user);
+        await validateExistence(Model.Transaction, transaction);
 
-        const order = await Order.create({
+        const order = await Model.Order.create({
             transaction,
             shippingAddress,
             recipientName,
             recipientPhone,
             shippingFee,
         });
-        await Transaction.updateOne(
+        await Model.Transaction.updateOne(
             { _id: transaction },
             { $set: { order: order._id } },
             { version: false }
         );
         const orderItems = await Promise.all(
-            items.map(item => OrderItem.create({
+            items.map(item => Model.OrderItem.create({
                 order: order._id,
                 variant: item.variant,
                 size: item.size._id,
@@ -113,7 +115,7 @@ exports.updateOrderStatus = async (req, res) => {
         if (!['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(status)) {
             return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
         }
-        const order = await Order.findByIdAndUpdate(req.params.id, { status }, { new: true });
+        const order = await Model.Order.findByIdAndUpdate(req.params.id, { status }, { new: true });
         if (!order) return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
         res.json(order);
     } catch (error) {
@@ -123,10 +125,51 @@ exports.updateOrderStatus = async (req, res) => {
 
 exports.deleteOrder = async (req, res) => {
     try {
-        const deletedOrder = await Order.findByIdAndDelete(req.params.id);
+        const deletedOrder = await Model.Order.findByIdAndDelete(req.params.id);
         if (!deletedOrder) return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
         res.json({ message: 'Đơn hàng đã được xóa' });
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+const A_DAY = 1000 * 60 * 60 * 24;
+exports.cancelOrderById = async (req, res) => {
+    try {
+        const orderId = req.params.orderId;
+
+        const cancelledOrder = await withTransaction(async session => {
+            const order = await Model.Order.findById(orderId)
+                .populate('transaction')
+                .session(session)
+                .lean();
+            const isOverOneDay = Date.now() > new Date(order.createdAt).getTime() + A_DAY;
+            if (order.status === 'delivered' || isOverOneDay ) {
+                throwError('ORD.CANCEL', 'Đơn hàng không thể hủy ở trạng thái hiện tại', 400);
+            }
+
+            if (['confirmed', 'shipping'].includes(order.status)) {
+                const orderItems = await Model.OrderItem.find({ order: order._id }).session(session);
+                for (const item of orderItems) {
+                    await Model.VariantSize.findOneAndUpdate(
+                        { _id: item.size },
+                        { $inc: { stock: item.quantity } },
+                        { session }
+                    );
+                }
+            }
+
+            return cancelOrder({
+                session,
+                providerTxId: order.transaction.providerTransactionId,
+            });
+        });
+
+        res.json({ message: 'Đơn hàng đã được hủy thành công', data: cancelledOrder });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "ORD.CANCEL",
+            defaultMessage: "Huỷ đơn hàng thất bại"
+        });
     }
 };
