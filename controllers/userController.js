@@ -1,5 +1,6 @@
 
 const { resError, throwError } = require('../helpers/errorHelper');
+const { getEnrichedOrders } = require('../helpers/orderHelper');
 const { getEnrichedVariants, getEnrichedCartItems } = require('../helpers/productHelper');
 const { applyProfileUpdates, updateDefaultMark } = require('../helpers/userHelper');
 const Model = require('../models');
@@ -448,41 +449,12 @@ exports.getUserOrders = async (req, res) => {
     try {
         const user = await validateExistence(Model.User, req.params.userId);
         const orders = await Model.Order.find({ user })
-            .populate('user', 'username fullName email')
-            .populate('transaction', '-order -user -__v')
+            .select('transaction status items createdAt updatedAt')
+            .populate('transaction', '-user -order -__v')
             .sort({ createdAt: -1 })
             .lean();
 
-        const enrichedOrders = await Promise.all(
-            orders.map(async order => {
-                const orderItems = await Model.OrderItem.find({ order: order._id }).select('-__v').lean();
-                let unreviewedCount = 0;
-                const enrichedItems = await Promise.all(
-                    orderItems.map(async item => {
-                        const size = await Model.VariantSize.findById(item.size).select('size active').lean();
-                        const review = await Model.Review.findOne({ user, orderItem: item._id }).lean();
-                        const isReviewed = Boolean(review);
-                        if (!isReviewed) unreviewedCount += 1;
-                        return {
-                            ...item,
-                            size: {
-                                _id: size._id,
-                                size: size.size
-                            },
-                            active: size.active,
-                            isReviewed
-                        };
-                    })
-                )
-
-                const allReviewed = unreviewedCount === 0;
-                return {
-                    ...order,
-                    items: enrichedItems,
-                    allReviewed
-                };
-            })
-        );
+        const enrichedOrders = await getEnrichedOrders(orders, user);
 
         res.json({ data: enrichedOrders });
     } catch (err) {
