@@ -1,9 +1,10 @@
 
 const { withTransaction } = require('../helpers/dbTransaction');
 const { throwError, resError } = require('../helpers/errorHelper');
+const { getEnrichedOrders } = require('../helpers/orderHelper');
 const Model = require('../models');
 const { cancelOrder } = require('../services/order.service');
-const validateExistence = require('../utils/validates');
+const { validateExistence } = require('../utils/validates');
 
 exports.getAllOrders = async (req, res) => {
     try {
@@ -47,23 +48,28 @@ exports.getOrderById = async (req, res) => {
 
 exports.getOrderById = async (req, res) => {
     try {
-        const order = await Model.Order.findById(req.params.id)
-            .populate('user', 'username fullName email')
-            .populate({
-                path: 'transaction',
-                select: '-metadata'
-            })
+        const orderId = await validateExistence(Model.Order, req.params.orderId);
+        const order = await Model.Order.findById(orderId)
+            .populate([
+                {
+                    path: 'user',
+                    select: 'fullName username email avatar'
+                },
+                {
+                    path: 'transaction',
+                    select: '-user -order -__v'
+                }
+            ])
             .lean();
-        if (!order) return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
-        const items = await Model.OrderItem.find({ order: order._id }).lean();
 
-        const enrichedOrder = {
-            ...order,
-            items
-        };
-        res.json(enrichedOrder);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+        const [enrichedOrder] = await getEnrichedOrders([order], order.user._id);
+
+        res.json({ data: enrichedOrder });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "ORD.GET_DETAIL",
+            defaultMessage: "Lấy dữ liệu đơn hàng thất bại"
+        });
     }
 };
 
@@ -71,7 +77,7 @@ exports.createOrder = async (req, res) => {
     try {
         const { user, shippingAddress, recipientName, recipientPhone, items, transaction, shippingFee } = req.body;
         if (!user || !shippingAddress || !recipientName || !recipientPhone || !items.length || !shippingFee)
-            throwError('Bad Request', 'Thiếu thông tin đơn hàng', 400);
+            throwError('ORD.CREATE', 'Thiếu thông tin đơn hàng', 400);
         await validateExistence(Model.User, user);
         await validateExistence(Model.Transaction, transaction);
 
@@ -103,9 +109,11 @@ exports.createOrder = async (req, res) => {
         );
         order.set('items', orderItems);
         res.status(201).json({ message: 'Tạo đơn hàng thành công', order });
-    } catch (error) {
-        const status = error.statusCode || 500;
-        res.status(status).json({ message: error.message });
+    } catch (err) {
+        resError(res, err, {
+            defaultCode: "ORD.CREATE",
+            defaultMessage: "Tạo đơn hàng thất bại"
+        });
     }
 };
 
@@ -144,7 +152,7 @@ exports.cancelOrderById = async (req, res) => {
                 .session(session)
                 .lean();
             const isOverOneDay = Date.now() > new Date(order.createdAt).getTime() + A_DAY;
-            if (order.status === 'delivered' || isOverOneDay ) {
+            if (order.status === 'delivered' || isOverOneDay) {
                 throwError('ORD.CANCEL', 'Đơn hàng không thể hủy ở trạng thái hiện tại', 400);
             }
 
@@ -157,12 +165,10 @@ exports.cancelOrderById = async (req, res) => {
                         { session }
                     );
                 }
-            }
-
-            return cancelOrder({
-                session,
-                providerTxId: order.transaction.providerTransactionId,
-            });
+            } z
+            order.status = 'cancelled';
+            await order.save({ session });
+            return await order.populate('transaction');
         });
 
         res.json({ message: 'Đơn hàng đã được hủy thành công', data: cancelledOrder });

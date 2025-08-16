@@ -5,7 +5,9 @@ const { verifyToken, verifyTokenByPurpose } = require('../middlewares/authMiddle
 
 // router.get('/user/:user', orderController.getOrdersByUser); // Đã có ở users
 router.get('/', orderController.getAllOrders);
-router.get('/:id', orderController.getOrderById);
+router.get('/:orderId',
+    // verifyTokenByPurpose('login'),
+    orderController.getOrderById);
 
 router.post('/', orderController.createOrder);
 router.put('/:id/status', orderController.updateOrderStatus);
