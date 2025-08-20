@@ -132,11 +132,11 @@ async function updateOrderStatus({ session, providerTxId }) {
     );
     if (!transaction) throwError("TRX.WEBHOOK", "Không tìm thấy giao dịch để cập nhật", 404);
 
-    await Order.findByIdAndUpdate(
-        transaction.order,
-        { $set: { status: 'confirmed' }, $inc: { __v: 1 } },
-        { new: true, session }
-    );
+    // await Order.findByIdAndUpdate(
+    //     transaction.order,
+    //     { $set: { status: 'confirmed' }, $inc: { __v: 1 } },
+    //     { new: true, session }
+    // );
 
     const orderItems = await OrderItem.find({ order: transaction.order }).session(session);
     for (const item of orderItems) {
