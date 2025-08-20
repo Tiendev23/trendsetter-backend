@@ -21,11 +21,11 @@ exports.createTransaction = async (req, res) => {
                 providerTxId: transId
             });
 
-            await Order.findByIdAndUpdate(
-                orderId,
-                { $set: { status: 'confirmed' }, $inc: { __v: 1 } },
-                { new: true, session }
-            );
+            // await Order.findByIdAndUpdate(
+            //     orderId,
+            //     { $set: { status: 'confirmed' }, $inc: { __v: 1 } },
+            //     { new: true, session }
+            // );
 
             const orderItems = await OrderItem.find({ order: orderId }).session(session);
             for (const item of orderItems) {

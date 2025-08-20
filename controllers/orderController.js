@@ -149,8 +149,8 @@ exports.cancelOrderById = async (req, res) => {
         const cancelledOrder = await withTransaction(async session => {
             const order = await Model.Order.findById(orderId)
                 .populate('transaction')
-                .session(session)
-                .lean();
+                .session(session);
+
             const isOverOneDay = Date.now() > new Date(order.createdAt).getTime() + A_DAY;
             if (order.status === 'delivered' || isOverOneDay) {
                 throwError('ORD.CANCEL', 'Đơn hàng không thể hủy ở trạng thái hiện tại', 400);
@@ -165,7 +165,7 @@ exports.cancelOrderById = async (req, res) => {
                         { session }
                     );
                 }
-            } z
+            }
             order.status = 'cancelled';
             await order.save({ session });
             return await order.populate('transaction');
